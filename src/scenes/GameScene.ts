@@ -6,6 +6,7 @@ import { LEVELS } from '../config/levels';
 import { Board } from '../objects/Board';
 import { ParticleManager } from '../managers/ParticleManager';
 import { AudioManager } from '../managers/AudioManager';
+import { BIOME_BACKGROUND_KEYS, biomeForLevel } from '../config/biomeConfig';
 
 export class GameScene extends Phaser.Scene {
   private levelManager = new LevelManager();
@@ -28,7 +29,7 @@ export class GameScene extends Phaser.Scene {
     this.moves = config.moves;
     this.scoreManager.reset();
 
-    this.drawBackground();
+    this.drawBackground(level);
     this.addCharacters();
 
     const anim = new AnimationManager(this);
@@ -59,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.board.build();
+    this.add.image(360, 640, 'board_frame').setDisplaySize(720, 1280).setDepth(40).setAlpha(0.95);
     this.registry.set('level', level);
     this.registry.set('score', 0);
     this.registry.set('moves', this.moves);
@@ -69,9 +71,13 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('UIScene');
   }
 
-  private drawBackground(): void {
-    this.add.image(360, 640, 'world_map_elements', 'biome_twilight').setDisplaySize(720, 1280).setAlpha(0.65);
-    this.add.image(360, 310, 'world_map_elements', 'landmark').setDisplaySize(460, 180).setAlpha(0.5);
+  private drawBackground(level: number): void {
+    const biome = biomeForLevel(level);
+    const textureKey = BIOME_BACKGROUND_KEYS[biome];
+    this.add.image(360, 640, textureKey).setDisplaySize(720, 1280);
+
+    this.add.rectangle(360, 640, 720, 1280, 0x120d24, 0.16);
+    this.add.image(360, 230, 'world_map_elements', 'landmark').setDisplaySize(460, 180).setAlpha(0.25);
   }
 
   private addCharacters(): void {

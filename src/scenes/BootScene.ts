@@ -24,6 +24,16 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('kirumi_sprites', 'assets/sprites/kirumi_sprites.png', { frameWidth: 384, frameHeight: 459 });
     this.load.spritesheet('npc_sprites', 'assets/sprites/npc_sprites.png', { frameWidth: 469, frameHeight: 512 });
     this.load.spritesheet('obstacles_tiles', 'assets/sprites/obstacles_tiles.png', { frameWidth: 128, frameHeight: 205, endFrame: 36 });
+
+    this.load.image('bg_berry_meadow', 'assets/backgrounds/bg_berry_meadow.png');
+    this.load.image('bg_frostberry_falls', 'assets/backgrounds/bg_frostberry_falls.png');
+    this.load.image('bg_sunberry_desert', 'assets/backgrounds/bg_sunberry_desert.png');
+    this.load.image('bg_bramble_forest', 'assets/backgrounds/bg_bramble_forest.png');
+    this.load.image('bg_starberry_cosmos', 'assets/backgrounds/bg_starberry_cosmos.png');
+    this.load.image('bg_title_screen', 'assets/backgrounds/bg_title_screen.png');
+    this.load.image('bg_world_map', 'assets/backgrounds/bg_world_map.png');
+    this.load.image('board_frame', 'assets/ui/board_frame.png');
+    this.load.spritesheet('particle_sheet', 'assets/ui/particle_sheet.png', { frameWidth: 64, frameHeight: 64 });
   }
 
   create(): void {
