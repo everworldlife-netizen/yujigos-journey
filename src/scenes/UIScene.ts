@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioManager } from '../managers/AudioManager';
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -6,6 +7,9 @@ export class UIScene extends Phaser.Scene {
   private levelText!: Phaser.GameObjects.Text;
   private fill!: Phaser.GameObjects.Image;
   private objectiveText!: Phaser.GameObjects.Text;
+  private audioManager = new AudioManager();
+  private volumeFill!: Phaser.GameObjects.Rectangle;
+  private muteLabel!: Phaser.GameObjects.Text;
 
   constructor() { super('UIScene'); }
 
@@ -30,6 +34,33 @@ export class UIScene extends Phaser.Scene {
 
     const pauseBtn = this.add.image(664, 100, 'ui_elements', 'pause_button').setDisplaySize(58, 58).setInteractive({ useHandCursor: true });
     pauseBtn.on('pointerdown', () => this.scene.pause('GameScene'));
+    const muteBtn = this.add.rectangle(650, 178, 100, 34, 0x3e2557, 0.94).setStrokeStyle(2, 0xffdbff, 0.9).setInteractive({ useHandCursor: true });
+    this.muteLabel = this.add.text(650, 178, this.audioManager.isMuted() ? 'UNMUTE' : 'MUTE', { fontSize: '16px', color: '#ffffff', fontStyle: '700' }).setOrigin(0.5);
+    muteBtn.on('pointerdown', () => {
+      this.audioManager.buttonClick();
+      const muted = this.audioManager.toggleMute();
+      this.muteLabel.setText(muted ? 'UNMUTE' : 'MUTE');
+    });
+
+    this.add.text(530, 210, 'VOL', { fontSize: '15px', color: '#fff2ff', fontStyle: '700' }).setOrigin(1, 0.5);
+    const sliderBg = this.add.rectangle(610, 210, 140, 10, 0x271834, 0.9).setOrigin(0.5).setStrokeStyle(1, 0xffffff, 0.35);
+    this.volumeFill = this.add.rectangle(540, 210, 140 * this.audioManager.getVolume(), 8, 0xff9cee, 0.95).setOrigin(0, 0.5);
+    const knob = this.add.circle(540 + 140 * this.audioManager.getVolume(), 210, 8, 0xffffff, 1).setInteractive({ draggable: true, useHandCursor: true });
+    this.input.setDraggable(knob);
+    knob.on('drag', (_p: Phaser.Input.Pointer, dragX: number) => {
+      const x = Phaser.Math.Clamp(dragX, 540, 680);
+      const volume = (x - 540) / 140;
+      knob.x = x;
+      this.volumeFill.width = Math.max(2, 140 * volume);
+      this.audioManager.setVolume(volume);
+    });
+    sliderBg.setInteractive({ useHandCursor: true }).on('pointerdown', (p: Phaser.Input.Pointer) => {
+      const local = Phaser.Math.Clamp(p.x, 540, 680);
+      const volume = (local - 540) / 140;
+      knob.x = local;
+      this.volumeFill.width = Math.max(2, 140 * volume);
+      this.audioManager.setVolume(volume);
+    });
 
     this.registry.events.on('changedata', this.updateHud, this);
     this.updateHud();

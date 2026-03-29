@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ANIM, BOARD_COLS, BOARD_ROWS, BOARD_X, BOARD_Y, BERRY_TYPES, SCORE, TILE_SIZE } from '../config/gameConfig';
 import { LevelObjective } from '../config/LevelConfig';
 import { AnimationManager } from '../managers/AnimationManager';
+import { AudioManager } from '../managers/AudioManager';
 import { ParticleManager } from '../managers/ParticleManager';
 import { Obstacle, ObstacleType } from './Obstacle';
 import { SpecialTile } from './SpecialTile';
@@ -17,6 +18,7 @@ export class Board {
   selected: Tile | null = null;
   private selectionRing: Phaser.GameObjects.Arc | null = null;
   busy = false;
+  private audioManager = new AudioManager();
 
   constructor(
     private scene: Phaser.Scene,
@@ -137,6 +139,7 @@ export class Board {
 
     const matches = this.findMatches();
     if (!matches.length) {
+      this.audioManager.swapFail();
       this.particles.boardShake(0.0018, 100);
       this.swapRefs(a, b);
       await Promise.all([
@@ -202,6 +205,7 @@ export class Board {
     const matches = this.findMatches();
     if (!matches.length) return;
     if (combo > 1) {
+      this.audioManager.cascade(combo);
       this.anim.comboPopup(combo, 360, 330);
       this.anim.screenPulse(0xffef9d, Math.min(0.08 + combo * 0.03, 0.24), 180);
       this.particles.boardShake(0.0018 + combo * 0.0008, 120 + combo * 40);
@@ -266,6 +270,7 @@ export class Board {
       actions.push((async () => {
         const shouldDestroy = await obstacle.damage(this.scene, 1);
         if (shouldDestroy) {
+          this.audioManager.obstacleBreak();
           await obstacle.destroyAnimated(this.scene);
           this.obstacles[r][c] = null;
         }
@@ -372,18 +377,21 @@ export class Board {
       const tile = this.grid[r][c];
       if (!tile || tile.data.special === SpecialType.None) return;
       if (tile.data.special === SpecialType.StripedRow) {
+        this.audioManager.powerStripe();
         this.anim.screenPulse(0xc5ecff, 0.16, 140);
         for (let cc = 0; cc < BOARD_COLS; cc++) {
           clearSet.add(`${r}-${cc}`);
           this.scene.time.delayedCall(cc * 30, () => this.particles.lightning(tile.sprite.x, tile.sprite.y, this.toX(cc), this.toY(r)));
         }
       } else if (tile.data.special === SpecialType.StripedCol) {
+        this.audioManager.powerStripe();
         this.anim.screenPulse(0xc5ecff, 0.16, 140);
         for (let rr = 0; rr < BOARD_ROWS; rr++) {
           clearSet.add(`${rr}-${c}`);
           this.scene.time.delayedCall(rr * 30, () => this.particles.lightning(tile.sprite.x, tile.sprite.y, this.toX(c), this.toY(rr)));
         }
       } else if (tile.data.special === SpecialType.Rainbow) {
+        this.audioManager.powerRainbow();
         this.anim.screenPulse(0xff8de9, 0.2, 220);
         this.particles.sparkle(tile.sprite.x, tile.sprite.y, 42, 1100);
         const targetType = Phaser.Math.Between(0, BERRY_TYPES - 1);
@@ -397,6 +405,7 @@ export class Board {
           }
         }
       } else if (tile.data.special === SpecialType.Bomb) {
+        this.audioManager.powerBomb();
         this.anim.screenPulse(0xffcf8a, 0.18, 160);
         this.particles.boardShake(0.0032, 180);
         for (let rr = r - 1; rr <= r + 1; rr++) {

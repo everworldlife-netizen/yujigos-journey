@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { audioManager } from './AudioManager';
 
 export class AnimationManager {
   constructor(private scene: Phaser.Scene) {}
@@ -122,6 +123,7 @@ export class AnimationManager {
       ease: 'Back.easeOut',
       onComplete: () => t.destroy(),
     });
+    if (combo > 5) audioManager.announce('chain_combo');
   }
 
   popup(text: string, x: number, y: number, combo = false, color = '#ffffff'): void {
@@ -151,6 +153,7 @@ export class AnimationManager {
   }
 
   landingSquash(target: Phaser.GameObjects.Container): void {
+    audioManager.playSfx('berry_land');
     this.scene.tweens.add({
       targets: target,
       scaleX: 1.15,
