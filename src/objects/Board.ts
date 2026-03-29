@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ANIM, BOARD_COLS, BOARD_ROWS, BOARD_X, BOARD_Y, BERRY_TYPES, SCORE, TILE_SIZE } from '../config/gameConfig';
 import { AnimationManager } from '../managers/AnimationManager';
-import { ParticleManager } from './ParticleManager';
+import { ParticleManager } from '../managers/ParticleManager';
 import { SpecialTile } from './SpecialTile';
 import { SpecialType, Tile } from './Tile';
 
@@ -144,7 +144,7 @@ export class Board {
       if (!tile) return;
       const color = Phaser.Display.Color.HSVToRGB(tile.data.type / BERRY_TYPES, 0.7, 1).color;
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
-      if (tile.data.special === SpecialType.Bomb) this.particles.bombShake();
+      if (tile.data.special === SpecialType.Bomb) this.particles.boardShake(0.005, 260);
       void this.anim.clear(tile.sprite).then(() => tile.sprite.destroy());
       this.onScore(SCORE.BASE_CLEAR * 2, this.toX(c), this.toY(r), 2);
       this.grid[r][c] = null;
@@ -220,6 +220,7 @@ export class Board {
 
       const color = Phaser.Display.Color.HSVToRGB(tile.data.type / BERRY_TYPES, 0.7, 1).color;
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
+      if (tile.data.special === SpecialType.Bomb) this.particles.ember(tile.sprite.x, tile.sprite.y);
       clears.push(this.anim.clear(tile.sprite).then(() => tile.sprite.destroy()));
       this.grid[r][c] = null;
       this.onScore(SCORE.BASE_CLEAR * combo, this.toX(c), this.toY(r), combo);
@@ -227,10 +228,14 @@ export class Board {
 
     await Promise.all(clears);
 
+    if (clearSet.size >= 4) this.particles.boardShake(0.004 + Math.min(clearSet.size, 8) * 0.0002, 180 + clearSet.size * 20);
+    if (combo > 1) this.anim.comboPopup(combo, this.scene.scale.width / 2, 240);
+
     specialsToCreate.forEach((s) => {
       const host = this.grid[s.row][s.col];
       if (host) {
         host.data.special = s.type;
+        host.refreshSpecialVisual(this.scene);
         const flash = this.scene.add.rectangle(host.sprite.x, host.sprite.y, 82, 82, 0xffffff, 0.9);
         this.scene.tweens.add({ targets: flash, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
         this.particles.sparkle(host.sprite.x, host.sprite.y);
@@ -254,8 +259,8 @@ export class Board {
           this.grid[r][c] = null;
           tile.setGridPosition(pointer, c);
           tweens.push(new Promise((resolve) => {
-            this.scene.tweens.add({ targets: tile.sprite, y: this.toY(pointer), duration: ANIM.FALL_MS, ease: 'Cubic.easeIn', delay: c * ANIM.CASCADE_DELAY_MS, onComplete: () => {
-              this.scene.tweens.add({ targets: tile.sprite, y: tile.sprite.y - 6, yoyo: true, duration: 110, ease: 'Sine.easeOut', onComplete: () => resolve() });
+            this.scene.tweens.add({ targets: tile.sprite, y: this.toY(pointer), duration: ANIM.FALL_MS + c * 10, ease: 'Quad.easeIn', delay: c * ANIM.CASCADE_DELAY_MS, onComplete: () => {
+              this.scene.tweens.add({ targets: tile.sprite, y: tile.sprite.y - 8, yoyo: true, duration: 140, ease: 'Bounce.easeOut', onComplete: () => resolve() });
             } });
           }));
         }

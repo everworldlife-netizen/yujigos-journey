@@ -20,22 +20,35 @@ export type TileData = {
 export class Tile {
   public sprite: Phaser.GameObjects.Container;
   public gem: Phaser.GameObjects.Image;
-  public overlay?: Phaser.GameObjects.Text;
   public data: TileData;
+  private specialLayer?: Phaser.GameObjects.Container;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, data: TileData, frame?: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, data: TileData) {
     this.data = data;
     this.sprite = scene.add.container(x, y);
-    const texture = scene.textures.get('berry_tiles');
-    const candidate = frame ?? data.type;
-    const useFrame = texture && texture.has(candidate);
-    this.gem = scene.add.image(0, 0, 'berry_tiles', useFrame ? candidate : undefined);
-    this.gem.setDisplaySize(78, 78);
+    this.gem = scene.add.image(0, 0, `berry-${data.type}`).setDisplaySize(78, 78);
     this.sprite.add(this.gem);
     this.sprite.setSize(82, 82);
     this.sprite.setInteractive({ useHandCursor: true });
 
-    this.updateFaceFallback(scene);
+    scene.tweens.add({
+      targets: this.sprite,
+      y: y - 3,
+      duration: 1300 + Phaser.Math.Between(0, 500),
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    scene.tweens.add({
+      targets: this.gem,
+      scale: 1.05,
+      duration: 1100,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    this.refreshSpecialVisual(scene);
     this.redrawBlockers(scene);
   }
 
@@ -44,16 +57,48 @@ export class Tile {
     this.data.col = col;
   }
 
-  updateFaceFallback(scene: Phaser.Scene): void {
-    const texture = scene.textures.get('berry_tiles');
-    const hasFrames = texture && texture.has(this.data.type);
-    if (!hasFrames) {
-      if (!this.overlay) {
-        this.overlay = scene.add.text(0, 0, ['🍓', '🫐', '🍇', '🍒', '🍑', '🍏'][this.data.type], {
-          fontSize: '36px',
-        }).setOrigin(0.5);
-        this.sprite.add(this.overlay);
+  refreshSpecialVisual(scene: Phaser.Scene): void {
+    this.specialLayer?.destroy();
+    if (this.data.special === SpecialType.None) return;
+
+    const layer = scene.add.container(0, 0);
+    this.specialLayer = layer;
+    this.sprite.add(layer);
+
+    if (this.data.special === SpecialType.StripedRow || this.data.special === SpecialType.StripedCol) {
+      const stripes = scene.add.image(0, 0, 'special-stripes').setDisplaySize(74, 74).setAlpha(0.6);
+      if (this.data.special === SpecialType.StripedCol) stripes.setAngle(90);
+      const shimmer = scene.add.rectangle(-36, 0, 12, 80, 0xffffff, 0.35).setAngle(22);
+      layer.add([stripes, shimmer]);
+      scene.tweens.add({ targets: shimmer, x: 36, duration: 700, repeat: -1, delay: 280, ease: 'Sine.easeInOut', onRepeat: () => shimmer.x = -36 });
+    }
+
+    if (this.data.special === SpecialType.Rainbow) {
+      const core = scene.add.image(0, 0, 'special-rainbow').setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.SCREEN).setAlpha(0.72);
+      layer.add(core);
+      scene.tweens.add({ targets: core, angle: 360, duration: 2200, repeat: -1, ease: 'Linear' });
+      for (let i = 0; i < 4; i++) {
+        const spark = scene.add.image(0, 0, 'particle-star').setScale(0.42).setTint(0xffffff);
+        layer.add(spark);
+        scene.tweens.addCounter({
+          from: i * 90,
+          to: i * 90 + 360,
+          duration: 1600 + i * 200,
+          repeat: -1,
+          onUpdate: (t) => {
+            const ang = Phaser.Math.DegToRad(t.getValue());
+            spark.x = Math.cos(ang) * 34;
+            spark.y = Math.sin(ang) * 34;
+          },
+        });
       }
+    }
+
+    if (this.data.special === SpecialType.Bomb) {
+      const core = scene.add.image(0, 0, 'special-bomb').setDisplaySize(68, 68).setAlpha(0.95);
+      const glow = scene.add.circle(0, 0, 16, 0xff3a3a, 0.24);
+      layer.add([core, glow]);
+      scene.tweens.add({ targets: glow, scale: { from: 1, to: 1.8 }, alpha: { from: 0.45, to: 0.12 }, repeat: -1, duration: 820, yoyo: true });
     }
   }
 
