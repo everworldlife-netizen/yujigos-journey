@@ -10,7 +10,7 @@ export class AnimationManager {
       scale: { from: 0, to: 1.08 },
       duration: 420,
       delay,
-      ease: 'Back.easeOut',
+      ease: 'Back.Out',
       onComplete: () => {
         this.scene.tweens.add({ targets: target, scale: 1, duration: 180, ease: 'Sine.easeOut' });
       },
@@ -65,7 +65,7 @@ export class AnimationManager {
 
           const glow = this.scene.add.circle(x, y, 44, 0xffffff, 0.4);
           this.scene.tweens.add({ targets: glow, scale: 0, alpha: 0, duration: 220, onComplete: () => glow.destroy() });
-          this.scene.tweens.add({ targets: target, scale: { from: 1.05, to: 1 }, duration: 140, ease: 'Back.easeOut' });
+          this.scene.tweens.add({ targets: target, scale: { from: 1.05, to: 1 }, duration: 140, ease: 'Back.Out' });
           resolve();
         },
       });
@@ -78,7 +78,7 @@ export class AnimationManager {
         const flash = this.scene.add.rectangle(target.x, target.y, 94, 94, 0xffffff, 0).setDepth(60);
         const ring = this.scene.add.circle(target.x, target.y, 20, 0xffffff, 0).setStrokeStyle(5, 0xffffff, 1).setDepth(60);
 
-        this.scene.tweens.add({ targets: target, scaleX: 1.3, scaleY: 1.3, duration: 80, ease: 'Back.easeOut' });
+        this.scene.tweens.add({ targets: target, scaleX: 1.3, scaleY: 1.3, duration: 80, ease: 'Back.Out' });
         this.scene.tweens.add({ targets: flash, alpha: { from: 0, to: 1 }, duration: 50, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => flash.destroy() });
         this.scene.tweens.add({
           targets: ring,
@@ -102,7 +102,7 @@ export class AnimationManager {
   }
 
   comboPopup(combo: number, x: number, y: number): void {
-    const label = combo >= 5 ? 'BERRY BLAST!' : combo >= 3 ? 'AMAZING!' : 'SWEET!';
+    const label = `${combo}x COMBO!`;
     const sparkle = this.scene.add.circle(x, y, 140, 0xffef9e, 0.18).setDepth(120);
     this.scene.tweens.add({ targets: sparkle, scale: 1.8, alpha: 0, duration: 420, onComplete: () => sparkle.destroy() });
 
@@ -120,7 +120,7 @@ export class AnimationManager {
       angle: { from: -8, to: 8 },
       scale: { from: 0, to: 1.5 },
       duration: 760,
-      ease: 'Back.easeOut',
+      ease: 'Back.Out',
       onComplete: () => t.destroy(),
     });
     if (combo > 5) audioManager.announce('chain_combo');
@@ -160,7 +160,7 @@ export class AnimationManager {
       scaleY: 0.85,
       duration: 80,
       yoyo: true,
-      ease: 'Back.easeOut',
+      ease: 'Back.Out',
     });
   }
 

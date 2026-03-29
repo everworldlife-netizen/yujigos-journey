@@ -37,7 +37,9 @@ export class Board {
 
   build(): void {
     for (let r = 0; r < BOARD_ROWS; r++) {
-      for (let c = 0; c < BOARD_COLS; c++) this.spawnTile(r, c, true);
+      for (let c = 0; c < BOARD_COLS; c++) {
+        this.spawnTile(r, c, true, this.generateNonMatchingType(r, c));
+      }
     }
 
     this.levelConfig.obstacles.forEach((cfg) => {
@@ -50,10 +52,28 @@ export class Board {
     });
 
     this.pushObstacleStats();
+    if (!this.hasPossibleMoves()) {
+      this.reshuffleBoard();
+    }
   }
 
-  private spawnTile(row: number, col: number, init = false): void {
-    const type = Phaser.Math.Between(0, BERRY_TYPES - 1);
+  private generateNonMatchingType(row: number, col: number): number {
+    const blocked = new Set<number>();
+    const leftA = this.grid[row]?.[col - 1];
+    const leftB = this.grid[row]?.[col - 2];
+    if (leftA && leftB && leftA.data.type === leftB.data.type) blocked.add(leftA.data.type);
+
+    const upA = this.grid[row - 1]?.[col];
+    const upB = this.grid[row - 2]?.[col];
+    if (upA && upB && upA.data.type === upB.data.type) blocked.add(upA.data.type);
+
+    const candidates = Array.from({ length: BERRY_TYPES }, (_, i) => i).filter((type) => !blocked.has(type));
+    if (!candidates.length) return Phaser.Math.Between(0, BERRY_TYPES - 1);
+    return candidates[Phaser.Math.Between(0, candidates.length - 1)];
+  }
+
+  private spawnTile(row: number, col: number, init = false, forcedType?: number): void {
+    const type = forcedType ?? Phaser.Math.Between(0, BERRY_TYPES - 1);
     const t = new Tile(this.scene, this.toX(col), this.toY(row) - (init ? 220 : 0), {
       type,
       row,
@@ -72,7 +92,7 @@ export class Board {
       y: this.toY(row),
       angle: 0,
       duration: ANIM.SPAWN_MS + (init ? row * 24 : 0),
-      ease: 'Bounce.easeOut',
+      ease: 'Cubic.Out',
       delay: col * 30,
       onComplete: () => {
         this.anim.landingSquash(t.sprite);
@@ -137,8 +157,9 @@ export class Board {
       this.anim.smoothSwap(b.sprite, this.toX(b.data.col), this.toY(b.data.row)),
     ]);
 
+    const specialHandled = await this.handleSpecialSwap(a, b);
     const matches = this.findMatches();
-    if (!matches.length) {
+    if (!specialHandled && !matches.length) {
       this.audioManager.swapFail();
       this.particles.boardShake(0.0018, 100);
       this.swapRefs(a, b);
@@ -151,9 +172,13 @@ export class Board {
     }
 
     if (consumeMove) this.onMove();
-    await this.resolveCascade(1);
+    if (!specialHandled) await this.resolveCascadeLoop();
     await this.spreadHoneyAndChocolate();
     this.pushObstacleStats();
+    if (!this.hasPossibleMoves()) {
+      this.audioManager.levelFail();
+      await this.reshuffleBoard();
+    }
     this.busy = false;
   }
 
@@ -201,9 +226,17 @@ export class Board {
     return matches;
   }
 
-  private async resolveCascade(combo: number): Promise<void> {
-    const matches = this.findMatches();
-    if (!matches.length) return;
+  private async resolveCascadeLoop(): Promise<void> {
+    let combo = 1;
+    while (true) {
+      const matches = this.findMatches();
+      if (!matches.length) break;
+      await this.resolveCascade(matches, combo);
+      combo += 1;
+    }
+  }
+
+  private async resolveCascade(matches: Match[], combo: number): Promise<void> {
     if (combo > 1) {
       this.audioManager.cascade(combo);
       this.anim.comboPopup(combo, 360, 330);
@@ -257,7 +290,122 @@ export class Board {
     });
 
     await this.collapse();
-    await this.resolveCascade(combo + 1);
+  }
+
+  private async handleSpecialSwap(a: Tile, b: Tile): Promise<boolean> {
+    if (a.data.special === SpecialType.None && b.data.special === SpecialType.None) return false;
+
+    const clearSet = new Set<string>();
+    const addRowCol = (row: number, col: number) => {
+      for (let rr = row - 1; rr <= row + 1; rr++) {
+        for (let cc = col - 1; cc <= col + 1; cc++) {
+          if (rr < 0 || rr >= BOARD_ROWS || cc < 0 || cc >= BOARD_COLS) continue;
+          clearSet.add(`${rr}-${cc}`);
+        }
+      }
+    };
+
+    if (a.data.special !== SpecialType.None && b.data.special !== SpecialType.None) {
+      if (a.data.special === SpecialType.Bomb && b.data.special === SpecialType.Bomb) {
+        for (let rr = a.data.row - 2; rr <= a.data.row + 2; rr++) {
+          for (let cc = a.data.col - 2; cc <= a.data.col + 2; cc++) {
+            if (rr < 0 || rr >= BOARD_ROWS || cc < 0 || cc >= BOARD_COLS) continue;
+            clearSet.add(`${rr}-${cc}`);
+          }
+        }
+        this.particles.boardShake(0.008, 280);
+      } else {
+        for (let r = 0; r < BOARD_ROWS; r++) {
+          for (let c = 0; c < BOARD_COLS; c++) clearSet.add(`${r}-${c}`);
+        }
+      }
+    } else {
+      const special = a.data.special !== SpecialType.None ? a : b;
+      const normal = special === a ? b : a;
+      if (special.data.special === SpecialType.Rainbow) {
+        for (let r = 0; r < BOARD_ROWS; r++) {
+          for (let c = 0; c < BOARD_COLS; c++) {
+            const probe = this.grid[r][c];
+            if (probe?.data.type === normal.data.type) clearSet.add(`${r}-${c}`);
+          }
+        }
+        this.audioManager.powerRainbow();
+      } else if (special.data.special === SpecialType.Bomb) {
+        addRowCol(normal.data.row, normal.data.col);
+        this.audioManager.powerBomb();
+      } else if (special.data.special === SpecialType.StripedRow) {
+        for (let c = 0; c < BOARD_COLS; c++) clearSet.add(`${normal.data.row}-${c}`);
+        this.audioManager.powerStripe();
+      } else if (special.data.special === SpecialType.StripedCol) {
+        for (let r = 0; r < BOARD_ROWS; r++) clearSet.add(`${r}-${normal.data.col}`);
+        this.audioManager.powerStripe();
+      }
+    }
+
+    if (!clearSet.size) return false;
+
+    a.data.special = SpecialType.None;
+    b.data.special = SpecialType.None;
+    a.refreshSpecialVisual(this.scene);
+    b.refreshSpecialVisual(this.scene);
+
+    const fakeMatch: Match = { cells: Array.from(clearSet).map((key) => {
+      const [row, col] = key.split('-').map(Number);
+      return { row, col };
+    }) };
+    await this.resolveCascade([fakeMatch], 1);
+    await this.resolveCascadeLoop();
+    return true;
+  }
+
+  hasPossibleMoves(): boolean {
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      for (let c = 0; c < BOARD_COLS; c++) {
+        const tile = this.grid[r][c];
+        if (!tile || this.isStoneCell(r, c)) continue;
+        const dirs = [[0, 1], [1, 0]];
+        for (const [dr, dc] of dirs) {
+          const rr = r + dr;
+          const cc = c + dc;
+          if (rr >= BOARD_ROWS || cc >= BOARD_COLS || this.isStoneCell(rr, cc)) continue;
+          const other = this.grid[rr][cc];
+          if (!other) continue;
+          this.swapRefs(tile, other);
+          const hasMatch = this.findMatches().length > 0;
+          this.swapRefs(tile, other);
+          if (hasMatch) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  async reshuffleBoard(): Promise<void> {
+    const tiles: Tile[] = [];
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      for (let c = 0; c < BOARD_COLS; c++) {
+        if (this.isStoneCell(r, c)) continue;
+        const tile = this.grid[r][c];
+        if (tile) tiles.push(tile);
+      }
+    }
+
+    do {
+      Phaser.Utils.Array.Shuffle(tiles);
+      let idx = 0;
+      for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+          if (this.isStoneCell(r, c)) continue;
+          const tile = tiles[idx++];
+          this.grid[r][c] = tile;
+          tile.setGridPosition(r, c);
+          tile.data.special = SpecialType.None;
+          tile.refreshSpecialVisual(this.scene);
+        }
+      }
+    } while (this.findMatches().length > 0 || !this.hasPossibleMoves());
+
+    await Promise.all(tiles.map((tile) => this.anim.smoothSwap(tile.sprite, this.toX(tile.data.col), this.toY(tile.data.row))));
   }
 
   private async damageObstacles(hitSet: Set<string>): Promise<void> {
@@ -309,7 +457,7 @@ export class Board {
       if (this.obstacles[cfg.row][cfg.col]) return;
       const o = new Obstacle(this.scene, this.toX(cfg.col), this.toY(cfg.row), cfg);
       o.setScale(0.1);
-      this.scene.tweens.add({ targets: o, scale: 1, duration: 180, ease: 'Back.easeOut' });
+      this.scene.tweens.add({ targets: o, scale: 1, duration: 180, ease: 'Back.Out' });
       this.obstacles[cfg.row][cfg.col] = o;
     });
   }
@@ -339,7 +487,7 @@ export class Board {
               targets: tile.sprite,
               y: this.toY(pointer),
               duration: ANIM.FALL_MS + c * 10 + fallDistance * 34,
-              ease: 'Bounce.easeOut',
+              ease: 'Cubic.Out',
               delay: c * ANIM.CASCADE_DELAY_MS,
               onComplete: () => {
                 this.anim.landingSquash(tile.sprite);
@@ -353,7 +501,7 @@ export class Board {
       }
       for (let r = pointer; r >= 0; r--) {
         if (this.isStoneCell(r, c)) continue;
-        this.spawnTile(r, c);
+        this.spawnTile(r, c, false, this.generateNonMatchingType(r, c));
       }
     }
     await Promise.all(tweens);
@@ -467,5 +615,16 @@ export class Board {
     stats.chain.cleared = Math.max(0, stats.chain.total - currentChain);
 
     this.onObstacleUpdate(stats);
+  }
+
+  destroy(): void {
+    this.selectionRing?.destroy();
+    this.grid.flat().forEach((tile) => {
+      tile?.sprite.removeAllListeners();
+      tile?.sprite.destroy();
+    });
+    this.obstacles.flat().forEach((obstacle) => obstacle?.destroy());
+    this.grid = [];
+    this.obstacles = [];
   }
 }

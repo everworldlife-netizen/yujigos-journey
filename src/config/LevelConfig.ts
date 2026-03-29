@@ -43,39 +43,24 @@ function patternedObstacleSet(level: number): ObstacleConfig[] {
     });
   };
 
-  if (level >= 6 && level <= 10) add('ice', 1, 4);
-  if (level >= 11 && level <= 15) {
-    add('ice', 2, 5);
-    add('chain', 1, 3);
-  }
-  if (level >= 16 && level <= 20) {
-    add('ice', 2, 5);
-    add('chain', 2, 4);
-    add('stone', 999, 3);
-  }
+  if (level >= 11 && level <= 20) add('ice', level <= 15 ? 1 : 2, 3 + Math.floor((level - 11) / 3));
   if (level >= 21 && level <= 30) {
     add('ice', 2, 5);
-    add('chain', 2, 4);
-    add('stone', 999, 3);
-    add('honey', 2, 3);
-    add('chocolate', 2, 2);
+    add('chain', 1 + Math.floor((level - 21) / 5), 2 + Math.floor((level - 21) / 4));
   }
   if (level >= 31 && level <= 40) {
-    add('ice', 3, 6);
+    add('ice', 2, 6);
     add('chain', 2, 5);
-    add('stone', 999, 3);
-    add('honey', 2, 4);
-    add('chocolate', 2, 3);
-    add('bubble', 1, 3);
+    add('honey', 2, 3);
+    add('stone', 999, 2);
   }
   if (level >= 41) {
     add('ice', 3, 8);
     add('chain', 2, 6);
-    add('stone', 999, 6);
-    add('honey', 2, 5);
-    add('chocolate', 2, 5);
-    add('bubble', 1, 4);
-    add('void', 3, 2);
+    add('stone', 999, 4);
+    add('honey', 2, 4);
+    add('chocolate', 2, 3);
+    add('bubble', 1, 2);
   }
 
   const uniq = new Map<string, ObstacleConfig>();
@@ -85,7 +70,6 @@ function patternedObstacleSet(level: number): ObstacleConfig[] {
 
 export const LEVELS: LevelObjective[] = Array.from({ length: 50 }, (_, i) => {
   const level = i + 1;
-  const difficulty = Math.floor(i / 10);
   const obstacles = patternedObstacleSet(level);
 
   const objectiveTargets: LevelObjective['objectiveTargets'] = {};
@@ -94,10 +78,23 @@ export const LEVELS: LevelObjective[] = Array.from({ length: 50 }, (_, i) => {
   if (iceCount) objectiveTargets.ice = iceCount;
   if (chainCount) objectiveTargets.chain = chainCount;
 
+  let moves = 26;
+  let targetScore = 2800 + level * 450;
+  if (level <= 10) {
+    moves = 30 - Math.floor(level / 3);
+    targetScore = 2200 + level * 330;
+  } else if (level <= 30) {
+    moves = 26 - Math.floor((level - 11) / 3);
+    targetScore = 4200 + level * 500;
+  } else {
+    moves = 20 - Math.floor((level - 31) / 5);
+    targetScore = 8200 + level * 620;
+  }
+
   return {
     id: level,
-    moves: Math.max(18, 30 - Math.floor(level / 4)),
-    targetScore: 3500 + level * 600 + difficulty * 1200,
+    moves: Math.max(16, moves),
+    targetScore,
     blockers: {
       iceChance: 0,
       chainChance: 0,

@@ -22,7 +22,7 @@ export class Obstacle extends Phaser.GameObjects.Sprite {
     this.row = config.row;
     this.col = config.col;
     this.setDisplaySize(82, 82);
-    this.setDepth(25);
+    this.setDepth(this.obstacleType === 'ice' || this.obstacleType === 'chain' ? 28 : 25);
     scene.add.existing(this);
     this.setAlpha(this.obstacleType === 'bubble' ? 0.88 : 1);
   }
@@ -73,9 +73,12 @@ export class Obstacle extends Phaser.GameObjects.Sprite {
         ease: 'Sine.easeInOut',
         onStart: () => {
           scene.tweens.add({ targets: this, alpha: 0.4, yoyo: true, duration: 90, repeat: 1 });
+          if (this.obstacleType === 'ice') scene.tweens.add({ targets: this, angle: { from: -4, to: 4 }, duration: 120, yoyo: true });
+          if (this.obstacleType === 'chain') scene.tweens.add({ targets: this, scale: { from: 1, to: 1.12 }, duration: 100, yoyo: true, ease: 'Back.Out' });
         },
         onComplete: () => {
           this.setAlpha(this.obstacleType === 'bubble' ? 0.88 : 1);
+          this.setAngle(0);
           resolve();
         },
       });
