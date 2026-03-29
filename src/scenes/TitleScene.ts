@@ -1,9 +1,14 @@
 import Phaser from 'phaser';
+import { AudioManager } from '../managers/AudioManager';
 
 export class TitleScene extends Phaser.Scene {
+  private audioManager = new AudioManager();
+
   constructor() { super('TitleScene'); }
 
   create(): void {
+    this.audioManager.stopMusic();
+    void this.audioManager.unlock();
     this.cameras.main.fadeIn(450, 8, 6, 20);
     const { width, height } = this.scale;
 
@@ -20,6 +25,7 @@ export class TitleScene extends Phaser.Scene {
     const playBg = this.add.image(width / 2, height - 190, 'ui_elements', 'play_button').setDisplaySize(420, 132).setInteractive({ useHandCursor: true });
     this.tweens.add({ targets: playBg, scale: { from: 1, to: 1.05 }, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.easeInOut' });
     playBg.on('pointerdown', () => {
+      this.audioManager.buttonClick();
       this.cameras.main.fadeOut(350, 20, 8, 36);
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('WorldMapScene'));
     });

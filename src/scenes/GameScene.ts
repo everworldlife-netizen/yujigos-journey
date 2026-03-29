@@ -22,11 +22,13 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
 
   create(data: { level?: number }): void {
+    void this.audioManager.unlock();
     this.cameras.main.fadeIn(350, 10, 8, 22);
     this.levelManager.loadProgress();
     const level = data.level ?? 1;
     this.levelManager.setCurrent(level);
     const config = LEVELS[level - 1];
+    this.audioManager.startMusic(level);
     this.moves = config.moves;
     this.scoreManager.reset();
 
@@ -40,7 +42,7 @@ export class GameScene extends Phaser.Scene {
       const gain = this.scoreManager.add(points);
       anim.popup(`+${gain}`, x, y, false, colorHex);
       if (combo > 1) {
-        this.audioManager.combo();
+        this.audioManager.combo(combo);
         this.yujigo.play('yujigo-excited');
         this.kirumi.play('kirumi-happy');
         anim.comboPopup(combo, 360, 250);
@@ -71,6 +73,10 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('objectiveTargets', config.objectiveTargets);
 
     this.scene.launch('UIScene');
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.audioManager.stopMusic();
+    });
   }
 
   private drawBackground(level: number): void {

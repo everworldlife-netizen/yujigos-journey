@@ -1,13 +1,17 @@
 import Phaser from 'phaser';
 import { LevelManager } from '../managers/LevelManager';
 import { LEVELS } from '../config/levels';
+import { AudioManager } from '../managers/AudioManager';
 
 export class WorldMapScene extends Phaser.Scene {
   private levelManager = new LevelManager();
+  private audioManager = new AudioManager();
 
   constructor() { super('WorldMapScene'); }
 
   create(): void {
+    this.audioManager.stopMusic();
+    void this.audioManager.unlock();
     this.cameras.main.fadeIn(350, 10, 8, 22);
     this.levelManager.loadProgress();
     const { width, height } = this.scale;
@@ -34,6 +38,7 @@ export class WorldMapScene extends Phaser.Scene {
       if (unlocked) {
         this.tweens.add({ targets: n, scale: { from: 1, to: 1.08 }, duration: 800, yoyo: true, repeat: -1 });
         n.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+          this.audioManager.buttonClick();
           this.cameras.main.fadeOut(250, 10, 8, 22);
           this.cameras.main.once('camerafadeoutcomplete', () => {
             this.levelManager.setCurrent(i);
