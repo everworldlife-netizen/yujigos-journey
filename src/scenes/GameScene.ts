@@ -52,7 +52,11 @@ export class GameScene extends Phaser.Scene {
       this.moves--;
       this.registry.set('moves', this.moves);
       if (this.moves <= 0) this.endLevel();
-    }, config.blockers);
+    }, config, (stats) => {
+      this.registry.set('obstacleStats', stats);
+      const totalRemaining = (stats.ice.total - stats.ice.cleared) + (stats.chain.total - stats.chain.cleared);
+      this.registry.set('obstaclesRemaining', totalRemaining);
+    });
 
     this.board.build();
     this.registry.set('level', level);
@@ -60,6 +64,7 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('moves', this.moves);
     this.registry.set('target', config.targetScore);
     this.registry.set('stars', 0);
+    this.registry.set('objectiveTargets', config.objectiveTargets);
 
     this.scene.launch('UIScene');
   }
@@ -78,7 +83,10 @@ export class GameScene extends Phaser.Scene {
 
   private endLevel(): void {
     const target = this.registry.get('target') as number;
-    const won = this.scoreManager.score >= target;
+    const objectives = this.registry.get('objectiveTargets') as { ice?: number; chain?: number } | undefined;
+    const stats = this.registry.get('obstacleStats') as { ice: { total: number; cleared: number }; chain: { total: number; cleared: number } } | undefined;
+    const objectivesMet = !objectives || ((objectives.ice ?? 0) <= (stats?.ice.cleared ?? 0) && (objectives.chain ?? 0) <= (stats?.chain.cleared ?? 0));
+    const won = this.scoreManager.score >= target && objectivesMet;
     if (won) this.levelManager.completeCurrent();
 
     if (won) {

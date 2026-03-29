@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import fetch from 'node-fetch';
@@ -74,10 +74,18 @@ async function main() {
       await writeFile(path.join(TARGET_DIR, filename), binary);
       process.stdout.write(`done (${imageUrl})\n`);
     } catch (error) {
-      process.stdout.write(`failed\n`);
+      process.stdout.write('failed\n');
       console.error(`  ${filename}: ${error instanceof Error ? error.message : String(error)}`);
       process.exitCode = 1;
     }
+  }
+
+  const obstaclesFile = path.join(TARGET_DIR, 'obstacles_tiles.png');
+  try {
+    await access(obstaclesFile);
+    console.log('✓ obstacles_tiles.png found.');
+  } catch {
+    console.warn('⚠ obstacles_tiles.png is missing. Please place /public/assets/sprites/obstacles_tiles.png manually (1024x1024, 8x5 grid).');
   }
 }
 
