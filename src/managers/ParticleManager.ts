@@ -11,7 +11,7 @@ const PARTICLE_FRAMES = {
 export class ParticleManager {
   constructor(private scene: Phaser.Scene) {}
 
-  sparkle(x: number, y: number): void {
+  sparkle(x: number, y: number, quantity = 16, duration = 700): void {
     const emitter = this.scene.add.particles(x, y, 'particle_sheet', {
       frame: PARTICLE_FRAMES.sparkle,
       speed: { min: 30, max: 110 },
@@ -19,30 +19,67 @@ export class ParticleManager {
       scale: { start: 0.45, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 540,
-      quantity: 16,
+      quantity,
       tint: [0xffffff, 0xffe98a, 0x9df9ff],
       emitting: false,
       gravityY: 20,
     });
-    emitter.explode(16, x, y);
-    this.scene.time.delayedCall(700, () => emitter.destroy());
+    emitter.explode(quantity, x, y);
+    this.scene.time.delayedCall(duration, () => emitter.destroy());
   }
 
   burst(x: number, y: number, color: number): void {
     const emitter = this.scene.add.particles(x, y, 'particle_sheet', {
       frame: PARTICLE_FRAMES.burst,
-      speed: { min: 120, max: 320 },
-      angle: { min: 0, max: 360 },
+      speed: { min: 140, max: 360 },
+      angle: { min: 215, max: 325 },
       scale: { start: 0.65, end: 0 },
       alpha: { start: 0.95, end: 0 },
       lifespan: { min: 380, max: 620 },
       quantity: Phaser.Math.Between(8, 12),
       tint: [color, 0xffffff],
       emitting: false,
-      gravityY: 240,
+      gravityY: 460,
     });
     emitter.explode();
     this.scene.time.delayedCall(750, () => emitter.destroy());
+
+    this.sparkle(x, y, 10, 420);
+  }
+
+  landingDust(x: number, y: number, color = 0xf7d0a8): void {
+    const emitter = this.scene.add.particles(x, y + 22, 'particle_sheet', {
+      frame: PARTICLE_FRAMES.ember,
+      speedX: { min: -70, max: 70 },
+      speedY: { min: -20, max: -80 },
+      alpha: { start: 0.8, end: 0 },
+      scale: { start: 0.2, end: 0 },
+      quantity: 8,
+      lifespan: 260,
+      tint: [color, 0xffffff],
+      emitting: false,
+      gravityY: 180,
+    });
+    emitter.explode(8, x, y + 22);
+    this.scene.time.delayedCall(300, () => emitter.destroy());
+  }
+
+  lightning(fromX: number, fromY: number, toX: number, toY: number): void {
+    const g = this.scene.add.graphics().setDepth(180);
+    g.lineStyle(8, 0xf5f7ff, 0.95);
+    g.beginPath();
+    g.moveTo(fromX, fromY);
+    const segments = 6;
+    for (let i = 1; i < segments; i++) {
+      const t = i / segments;
+      const px = Phaser.Math.Linear(fromX, toX, t) + Phaser.Math.Between(-14, 14);
+      const py = Phaser.Math.Linear(fromY, toY, t) + Phaser.Math.Between(-14, 14);
+      g.lineTo(px, py);
+    }
+    g.lineTo(toX, toY);
+    g.strokePath();
+
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 120, onComplete: () => g.destroy() });
   }
 
   trail(x: number, y: number, color = 0xffffff): void {
