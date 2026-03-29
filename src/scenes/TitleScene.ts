@@ -24,10 +24,19 @@ export class TitleScene extends Phaser.Scene {
 
     const playBg = this.add.image(width / 2, height - 190, 'ui_elements', 'play_button').setDisplaySize(420, 132).setInteractive({ useHandCursor: true });
     this.tweens.add({ targets: playBg, scale: { from: 1, to: 1.05 }, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.easeInOut' });
+    playBg.on('pointerover', () => playBg.setScale(1.06));
+    playBg.on('pointerout', () => playBg.setScale(1));
     playBg.on('pointerdown', () => {
       this.audioManager.buttonClick();
+      playBg.setScale(0.94);
       this.cameras.main.fadeOut(350, 20, 8, 36);
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('WorldMapScene'));
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        try {
+          this.scene.start('WorldMapScene');
+        } catch (error) {
+          console.error('Title->WorldMap transition failed', error);
+        }
+      });
     });
   }
 }

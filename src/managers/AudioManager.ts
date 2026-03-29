@@ -65,6 +65,22 @@ export class AudioManager {
     audioManager.playSfx('board_shuffle');
   }
 
+  levelLose(): void {
+    audioManager.playSfx('board_shuffle');
+  }
+
+  specialCreated(): void {
+    audioManager.playSfx('combo_3');
+  }
+
+  specialActivated(): void {
+    audioManager.playSfx('power_rainbow');
+  }
+
+  comboCallout(level = 2): void {
+    if (level >= 3) this.combo(level);
+  }
+
   buttonClick(): void {
     audioManager.playSfx('button_click');
   }

@@ -37,11 +37,15 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    if (this.obstacleSheetFailed || !this.textures.exists('obstacles_tiles')) {
-      this.createObstacleFallbackTexture();
+    try {
+      if (this.obstacleSheetFailed || !this.textures.exists('obstacles_tiles')) {
+        this.createObstacleFallbackTexture();
+      }
+      this.createCharacterAnimations();
+      this.scene.start('TitleScene');
+    } catch (error) {
+      console.error('BootScene create failed', error);
     }
-    this.createCharacterAnimations();
-    this.scene.start('TitleScene');
   }
 
   private createObstacleFallbackTexture(): void {

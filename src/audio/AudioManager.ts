@@ -194,15 +194,22 @@ export class AudioManager {
 
   startMusic(level: number): void {
     if (!this.context || !this.musicBus) return;
-    this.currentBiome = biomeForLevel(level);
-    this.configureTheme(this.currentBiome);
-    this.stopMusic();
-    this.musicStep = 0;
+    const nextBiome = biomeForLevel(level);
     this.musicBus.gain.cancelScheduledValues(this.context.currentTime);
-    this.musicBus.gain.setValueAtTime(0, this.context.currentTime);
-    this.musicBus.gain.linearRampToValueAtTime(1, this.context.currentTime + 0.3);
-    this.musicTimer = window.setInterval(() => this.scheduleMusicStep(), this.beatSec * 1000);
-    this.scheduleMusicStep();
+    this.musicBus.gain.setValueAtTime(this.musicBus.gain.value, this.context.currentTime);
+    this.musicBus.gain.linearRampToValueAtTime(0, this.context.currentTime + 0.25);
+
+    window.setTimeout(() => {
+      if (!this.context || !this.musicBus) return;
+      this.currentBiome = nextBiome;
+      this.configureTheme(this.currentBiome);
+      if (this.musicTimer !== null) window.clearInterval(this.musicTimer);
+      this.musicStep = 0;
+      this.musicBus.gain.setValueAtTime(0, this.context.currentTime);
+      this.musicBus.gain.linearRampToValueAtTime(1, this.context.currentTime + 0.4);
+      this.musicTimer = window.setInterval(() => this.scheduleMusicStep(), this.beatSec * 1000);
+      this.scheduleMusicStep();
+    }, 260);
   }
 
   stopMusic(): void {

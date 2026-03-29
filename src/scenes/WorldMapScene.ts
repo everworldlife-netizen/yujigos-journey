@@ -27,6 +27,14 @@ export class WorldMapScene extends Phaser.Scene {
       container.add(d);
     });
 
+
+    const biomeNames = ['Berry Meadow', 'Frostberry Falls', 'Sunberry Desert', 'Bramble Forest', 'Starberry Cosmos'];
+    biomeNames.forEach((name, idx) => {
+      const y = totalH - (idx * 10 + 5) * 80;
+      const tag = this.add.text(width / 2, y, name, { fontSize: '36px', color: '#fff7dd', fontStyle: '900', stroke: '#3a174f', strokeThickness: 8 }).setOrigin(0.5).setAlpha(0.86);
+      container.add(tag);
+    });
+
     LEVELS.forEach((_lvl, idx) => {
       const i = idx + 1;
       const x = width / 2 + Math.sin(i * 0.7) * 170;
@@ -36,13 +44,17 @@ export class WorldMapScene extends Phaser.Scene {
       const t = this.add.text(x, y, `${i}`, { fontSize: '26px', color: '#fff', fontStyle: '700' }).setOrigin(0.5);
       container.add([n, t]);
       if (unlocked) {
-        this.tweens.add({ targets: n, scale: { from: 1, to: 1.08 }, duration: 800, yoyo: true, repeat: -1 });
+        this.tweens.add({ targets: n, scale: { from: 1, to: 1.08 }, duration: 800, yoyo: true, repeat: -1, ease: 'Cubic.Out' });
         n.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
           this.audioManager.buttonClick();
           this.cameras.main.fadeOut(250, 10, 8, 22);
           this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.levelManager.setCurrent(i);
-            this.scene.start('GameScene', { level: i });
+            try {
+              this.levelManager.setCurrent(i);
+              this.scene.start('GameScene', { level: i });
+            } catch (error) {
+              console.error('WorldMap->Game transition failed', error);
+            }
           });
         });
       }
@@ -56,9 +68,14 @@ export class WorldMapScene extends Phaser.Scene {
 
     this.cameras.main.setBounds(0, 0, width, totalH);
     this.cameras.main.scrollY = totalH - height;
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+    const onDrag = (p: Phaser.Input.Pointer) => {
       if (!p.isDown) return;
       this.cameras.main.scrollY = Phaser.Math.Clamp(this.cameras.main.scrollY - p.velocity.y * 0.02, 0, totalH - height);
+    };
+    this.input.on('pointermove', onDrag);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointermove', onDrag);
+      this.tweens.killAll();
     });
   }
 }
