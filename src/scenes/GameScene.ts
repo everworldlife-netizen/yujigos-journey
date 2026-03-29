@@ -17,6 +17,7 @@ export class GameScene extends Phaser.Scene {
   private audioManager = new AudioManager();
   private yujigo!: Phaser.GameObjects.Sprite;
   private kirumi!: Phaser.GameObjects.Sprite;
+  private vignette!: Phaser.GameObjects.Rectangle;
 
   constructor() { super('GameScene'); }
 
@@ -35,13 +36,14 @@ export class GameScene extends Phaser.Scene {
     const anim = new AnimationManager(this);
     this.particles = new ParticleManager(this);
 
-    this.board = new Board(this, anim, this.particles, (points, x, y, combo) => {
+    this.board = new Board(this, anim, this.particles, (points, x, y, combo, colorHex) => {
       const gain = this.scoreManager.add(points);
-      anim.popup(`+${gain}`, x, y, false);
+      anim.popup(`+${gain}`, x, y, false, colorHex);
       if (combo > 1) {
         this.audioManager.combo();
         this.yujigo.play('yujigo-excited');
         this.kirumi.play('kirumi-happy');
+        anim.comboPopup(combo, 360, 250);
       } else {
         this.audioManager.match();
         this.yujigo.play('yujigo-happy');
@@ -78,6 +80,27 @@ export class GameScene extends Phaser.Scene {
 
     this.add.rectangle(360, 640, 720, 1280, 0x120d24, 0.16);
     this.add.image(360, 230, 'world_map_elements', 'landmark').setDisplaySize(460, 180).setAlpha(0.25);
+    this.vignette = this.add.rectangle(360, 640, 720, 1280, 0x100616, 0.2).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(5);
+    this.addFloatingBackgroundParticles();
+  }
+
+  private addFloatingBackgroundParticles(): void {
+    const emitter = this.add.particles(360, 640, 'particle_sheet', {
+      frame: [0, 1, 2, 12, 48, 50],
+      x: { min: 30, max: 690 },
+      y: { min: 40, max: 1240 },
+      lifespan: 5000,
+      speedY: { min: -15, max: -4 },
+      speedX: { min: -5, max: 5 },
+      alpha: { start: 0.45, end: 0 },
+      scale: { start: 0.2, end: 0.05 },
+      quantity: 1,
+      frequency: 140,
+      tint: [0xfff2b6, 0x9de2ff, 0xffbdd8],
+      blendMode: 'ADD',
+    }).setDepth(4);
+    this.tweens.add({ targets: this.vignette, alpha: { from: 0.18, to: 0.26 }, yoyo: true, repeat: -1, duration: 1800, ease: 'Sine.easeInOut' });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => emitter.destroy());
   }
 
   private addCharacters(): void {

@@ -15,13 +15,14 @@ export class Board {
   grid: (Tile | null)[][] = [];
   obstacles: (Obstacle | null)[][] = [];
   selected: Tile | null = null;
+  private selectionRing: Phaser.GameObjects.Arc | null = null;
   busy = false;
 
   constructor(
     private scene: Phaser.Scene,
     private anim: AnimationManager,
     private particles: ParticleManager,
-    private onScore: (points: number, x: number, y: number, combo: number) => void,
+    private onScore: (points: number, x: number, y: number, combo: number, colorHex: string) => void,
     private onMove: () => void,
     private levelConfig: LevelObjective,
     private onObstacleUpdate: (stats: ObstacleStats) => void,
@@ -62,8 +63,20 @@ export class Board {
     this.grid[row][col] = t;
     t.sprite.on('pointerdown', () => this.trySelect(t));
     t.sprite.setScale(init ? 0 : 1);
+    if (init) t.sprite.setAngle(Phaser.Math.Between(-14, 14));
     this.anim.bounceSpawn(t.sprite, col * 36 + row * 12);
-    this.scene.tweens.add({ targets: t.sprite, y: this.toY(row), duration: ANIM.SPAWN_MS, ease: 'Back.easeOut', delay: col * 30 });
+    this.scene.tweens.add({
+      targets: t.sprite,
+      y: this.toY(row),
+      angle: 0,
+      duration: ANIM.SPAWN_MS + (init ? row * 24 : 0),
+      ease: 'Bounce.easeOut',
+      delay: col * 30,
+      onComplete: () => {
+        this.anim.landingSquash(t.sprite);
+        this.particles.landingDust(t.sprite.x, t.sprite.y);
+      },
+    });
   }
 
   private toX(col: number): number { return BOARD_X + col * TILE_SIZE + TILE_SIZE / 2; }
@@ -84,13 +97,20 @@ export class Board {
 
   private trySelect(tile: Tile): void {
     if (this.busy) return;
+    this.spawnBoardRipple(tile.sprite.x, tile.sprite.y);
     if (!this.selected) {
       this.selected = tile;
-      this.scene.tweens.add({ targets: tile.sprite, scale: { from: 1, to: 1.15 }, yoyo: true, repeat: -1, duration: 520, ease: 'Sine.easeInOut' });
+      this.selectionRing?.destroy();
+      this.selectionRing = this.scene.add.circle(tile.sprite.x, tile.sprite.y, 44, 0xffffff, 0).setStrokeStyle(4, 0xfff4ab, 0.9);
+      this.scene.tweens.add({ targets: tile.sprite, scale: { from: 1, to: 1.08 }, yoyo: true, repeat: -1, duration: 520, ease: 'Sine.easeInOut' });
+      this.scene.tweens.add({ targets: this.selectionRing, scale: { from: 0.94, to: 1.12 }, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.easeInOut' });
+      this.shimmerAdjacents(tile);
       return;
     }
     this.scene.tweens.killTweensOf(this.selected.sprite);
     this.selected.sprite.setScale(1);
+    this.selectionRing?.destroy();
+    this.selectionRing = null;
     const first = this.selected;
     this.selected = null;
     if (first === tile) return;
@@ -117,10 +137,11 @@ export class Board {
 
     const matches = this.findMatches();
     if (!matches.length) {
+      this.particles.boardShake(0.0018, 100);
       this.swapRefs(a, b);
       await Promise.all([
-        this.anim.smoothSwap(a.sprite, this.toX(a.data.col), this.toY(a.data.row)),
-        this.anim.smoothSwap(b.sprite, this.toX(b.data.col), this.toY(b.data.row)),
+        this.anim.smoothSwap(a.sprite, this.toX(a.data.col), this.toY(a.data.row), true),
+        this.anim.smoothSwap(b.sprite, this.toX(b.data.col), this.toY(b.data.row), true),
       ]);
       this.busy = false;
       return;
@@ -180,6 +201,11 @@ export class Board {
   private async resolveCascade(combo: number): Promise<void> {
     const matches = this.findMatches();
     if (!matches.length) return;
+    if (combo > 1) {
+      this.anim.comboPopup(combo, 360, 330);
+      this.anim.screenPulse(0xffef9d, Math.min(0.08 + combo * 0.03, 0.24), 180);
+      this.particles.boardShake(0.0018 + combo * 0.0008, 120 + combo * 40);
+    }
 
     const clearSet = new Set<string>();
     const specialsToCreate: Array<{ row: number; col: number; type: SpecialType }> = [];
@@ -187,9 +213,11 @@ export class Board {
       m.cells.forEach((c) => clearSet.add(`${c.row}-${c.col}`));
       if (m.special) specialsToCreate.push(m.special);
     });
+    this.expandSpecialClears(clearSet);
 
     const obstacleHits = new Set<string>();
     const clears: Promise<void>[] = [];
+    let clearIndex = 0;
     for (const key of clearSet) {
       const [r, c] = key.split('-').map(Number);
       const tile = this.grid[r][c];
@@ -197,9 +225,10 @@ export class Board {
 
       const color = tile.getTintColor();
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
-      clears.push(tile.playMatchReaction(this.scene).then(() => this.anim.clear(tile.sprite)).then(() => tile.sprite.destroy()));
+      clears.push(tile.playMatchReaction(this.scene).then(() => this.anim.clear(tile.sprite, clearIndex * 50)).then(() => tile.sprite.destroy()));
       this.grid[r][c] = null;
-      this.onScore(SCORE.BASE_CLEAR * combo, this.toX(c), this.toY(r), combo);
+      this.onScore(SCORE.BASE_CLEAR * combo, this.toX(c), this.toY(r), combo, Phaser.Display.Color.IntegerToColor(color).rgba);
+      clearIndex++;
 
       for (let rr = r - 1; rr <= r + 1; rr++) {
         for (let cc = c - 1; cc <= c + 1; cc++) {
@@ -218,6 +247,7 @@ export class Board {
         host.data.special = s.type;
         host.refreshSpecialVisual(this.scene);
         this.particles.sparkle(host.sprite.x, host.sprite.y);
+        this.animateSpecialCreation(host, s.type);
         SpecialTile.style(host, this.scene);
       }
     });
@@ -295,6 +325,7 @@ export class Board {
         if (pointer < 0) break;
 
         if (r !== pointer) {
+          const fallDistance = pointer - r;
           this.grid[pointer][c] = tile;
           this.grid[r][c] = null;
           tile.setGridPosition(pointer, c);
@@ -302,10 +333,14 @@ export class Board {
             this.scene.tweens.add({
               targets: tile.sprite,
               y: this.toY(pointer),
-              duration: ANIM.FALL_MS + c * 10,
-              ease: 'Quad.easeIn',
+              duration: ANIM.FALL_MS + c * 10 + fallDistance * 34,
+              ease: 'Bounce.easeOut',
               delay: c * ANIM.CASCADE_DELAY_MS,
-              onComplete: () => resolve(),
+              onComplete: () => {
+                this.anim.landingSquash(tile.sprite);
+                this.particles.landingDust(tile.sprite.x, tile.sprite.y);
+                resolve();
+              },
             });
           }));
         }
@@ -317,6 +352,97 @@ export class Board {
       }
     }
     await Promise.all(tweens);
+  }
+
+  private spawnBoardRipple(x: number, y: number): void {
+    const ripple = this.scene.add.circle(x, y, 12, 0xffffff, 0.18);
+    this.scene.tweens.add({
+      targets: ripple,
+      scale: 2.4,
+      alpha: 0,
+      duration: 280,
+      ease: 'Quad.easeOut',
+      onComplete: () => ripple.destroy(),
+    });
+  }
+
+  private expandSpecialClears(clearSet: Set<string>): void {
+    Array.from(clearSet).forEach((key) => {
+      const [r, c] = key.split('-').map(Number);
+      const tile = this.grid[r][c];
+      if (!tile || tile.data.special === SpecialType.None) return;
+      if (tile.data.special === SpecialType.StripedRow) {
+        this.anim.screenPulse(0xc5ecff, 0.16, 140);
+        for (let cc = 0; cc < BOARD_COLS; cc++) {
+          clearSet.add(`${r}-${cc}`);
+          this.scene.time.delayedCall(cc * 30, () => this.particles.lightning(tile.sprite.x, tile.sprite.y, this.toX(cc), this.toY(r)));
+        }
+      } else if (tile.data.special === SpecialType.StripedCol) {
+        this.anim.screenPulse(0xc5ecff, 0.16, 140);
+        for (let rr = 0; rr < BOARD_ROWS; rr++) {
+          clearSet.add(`${rr}-${c}`);
+          this.scene.time.delayedCall(rr * 30, () => this.particles.lightning(tile.sprite.x, tile.sprite.y, this.toX(c), this.toY(rr)));
+        }
+      } else if (tile.data.special === SpecialType.Rainbow) {
+        this.anim.screenPulse(0xff8de9, 0.2, 220);
+        this.particles.sparkle(tile.sprite.x, tile.sprite.y, 42, 1100);
+        const targetType = Phaser.Math.Between(0, BERRY_TYPES - 1);
+        for (let rr = 0; rr < BOARD_ROWS; rr++) {
+          for (let cc = 0; cc < BOARD_COLS; cc++) {
+            const probe = this.grid[rr][cc];
+            if (probe?.data.type === targetType) {
+              clearSet.add(`${rr}-${cc}`);
+              this.scene.tweens.add({ targets: probe.sprite, y: probe.sprite.y - 18, angle: 24, duration: 200, yoyo: true });
+            }
+          }
+        }
+      } else if (tile.data.special === SpecialType.Bomb) {
+        this.anim.screenPulse(0xffcf8a, 0.18, 160);
+        this.particles.boardShake(0.0032, 180);
+        for (let rr = r - 1; rr <= r + 1; rr++) {
+          for (let cc = c - 1; cc <= c + 1; cc++) {
+            if (rr < 0 || rr >= BOARD_ROWS || cc < 0 || cc >= BOARD_COLS) continue;
+            clearSet.add(`${rr}-${cc}`);
+          }
+        }
+      }
+    });
+  }
+
+  private animateSpecialCreation(tile: Tile, specialType: SpecialType): void {
+    if (specialType === SpecialType.StripedRow || specialType === SpecialType.StripedCol) {
+      this.anim.screenPulse(0xd9f2ff, 0.12, 90);
+      this.particles.lightning(tile.sprite.x - 64, tile.sprite.y, tile.sprite.x + 64, tile.sprite.y);
+      return;
+    }
+    if (specialType === SpecialType.Rainbow) {
+      const ring = this.scene.add.circle(tile.sprite.x, tile.sprite.y, 12, 0xffffff, 0).setStrokeStyle(6, 0xff7cff, 0.95);
+      this.scene.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
+      this.anim.screenPulse(0xf6a5ff, 0.15, 130);
+      return;
+    }
+    if (specialType === SpecialType.Bomb) {
+      const aura = this.scene.add.circle(tile.sprite.x, tile.sprite.y, 48, 0xffb24e, 0.2);
+      this.scene.tweens.add({ targets: aura, scale: 1.6, alpha: 0, duration: 420, onComplete: () => aura.destroy() });
+      this.scene.tweens.add({ targets: tile.sprite, scale: { from: 1, to: 1.14 }, yoyo: true, repeat: 1, duration: 130 });
+    }
+  }
+
+  private shimmerAdjacents(tile: Tile): void {
+    const { row, col } = tile.data;
+    const neighbors = [
+      [row - 1, col],
+      [row + 1, col],
+      [row, col - 1],
+      [row, col + 1],
+    ];
+    neighbors.forEach(([r, c]) => {
+      if (r < 0 || r >= BOARD_ROWS || c < 0 || c >= BOARD_COLS) return;
+      const n = this.grid[r][c];
+      if (!n) return;
+      const glow = this.scene.add.circle(n.sprite.x, n.sprite.y, 18, 0xffffff, 0.26);
+      this.scene.tweens.add({ targets: glow, scale: 2, alpha: 0, duration: 260, onComplete: () => glow.destroy() });
+    });
   }
 
   private pushObstacleStats(): void {
