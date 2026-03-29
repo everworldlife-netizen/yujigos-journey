@@ -5,7 +5,7 @@ export class UIScene extends Phaser.Scene {
   private movesText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
   private fill!: Phaser.GameObjects.Image;
-  private maxMoves = 1;
+  private objectiveText!: Phaser.GameObjects.Text;
 
   constructor() { super('UIScene'); }
 
@@ -24,11 +24,14 @@ export class UIScene extends Phaser.Scene {
 
     [250, 360, 510].forEach((x) => this.add.image(x, 136, 'ui_elements', 'star').setDisplaySize(24, 24));
 
+    this.add.image(118, 178, 'obstacles_tiles', 0).setDisplaySize(28, 28);
+    this.add.image(278, 178, 'obstacles_tiles', 8).setDisplaySize(28, 28);
+    this.objectiveText = this.add.text(140, 162, 'Ice: 0/0  Chain: 0/0', { fontSize: '24px', color: '#fff7cf', fontStyle: '700' });
+
     const pauseBtn = this.add.image(664, 100, 'ui_elements', 'pause_button').setDisplaySize(58, 58).setInteractive({ useHandCursor: true });
     pauseBtn.on('pointerdown', () => this.scene.pause('GameScene'));
 
     this.registry.events.on('changedata', this.updateHud, this);
-    this.maxMoves = this.registry.get('moves') ?? 1;
     this.updateHud();
   }
 
@@ -37,6 +40,8 @@ export class UIScene extends Phaser.Scene {
     const moves = Number(this.registry.get('moves') ?? 0);
     const level = Number(this.registry.get('level') ?? 1);
     const target = Number(this.registry.get('target') ?? 1);
+    const objectiveTargets = this.registry.get('objectiveTargets') as { ice?: number; chain?: number } | undefined;
+    const stats = this.registry.get('obstacleStats') as { ice: { total: number; cleared: number }; chain: { total: number; cleared: number } } | undefined;
 
     this.levelText.setText(`L${level}`);
     this.movesText.setText(`${moves}`);
@@ -52,5 +57,11 @@ export class UIScene extends Phaser.Scene {
 
     const progress = Phaser.Math.Clamp(score / (target * 1.2), 0, 1);
     this.tweens.add({ targets: this.fill, displayWidth: 420 * progress, duration: 280, ease: 'Cubic.easeOut' });
+
+    const iceTotal = objectiveTargets?.ice ?? 0;
+    const chainTotal = objectiveTargets?.chain ?? 0;
+    const iceCleared = stats?.ice.cleared ?? 0;
+    const chainCleared = stats?.chain.cleared ?? 0;
+    this.objectiveText.setText(`Ice: ${iceCleared}/${iceTotal}  Chain: ${chainCleared}/${chainTotal}`);
   }
 }

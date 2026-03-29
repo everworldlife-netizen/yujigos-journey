@@ -1,14 +1,19 @@
 import Phaser from 'phaser';
 import { ANIM, BOARD_COLS, BOARD_ROWS, BOARD_X, BOARD_Y, BERRY_TYPES, SCORE, TILE_SIZE } from '../config/gameConfig';
+import { LevelObjective } from '../config/LevelConfig';
 import { AnimationManager } from '../managers/AnimationManager';
 import { ParticleManager } from '../managers/ParticleManager';
+import { Obstacle, ObstacleType } from './Obstacle';
 import { SpecialTile } from './SpecialTile';
 import { SpecialType, Tile } from './Tile';
 
 type Match = { cells: { row: number; col: number }[]; special?: { row: number; col: number; type: SpecialType } };
 
+type ObstacleStats = Record<'ice' | 'chain', { total: number; cleared: number }>;
+
 export class Board {
   grid: (Tile | null)[][] = [];
+  obstacles: (Obstacle | null)[][] = [];
   selected: Tile | null = null;
   busy = false;
 
@@ -18,19 +23,30 @@ export class Board {
     private particles: ParticleManager,
     private onScore: (points: number, x: number, y: number, combo: number) => void,
     private onMove: () => void,
-    private blockerConfig: { iceChance: number; chainChance: number },
+    private levelConfig: LevelObjective,
+    private onObstacleUpdate: (stats: ObstacleStats) => void,
   ) {
     for (let r = 0; r < BOARD_ROWS; r++) {
       this.grid[r] = Array(BOARD_COLS).fill(null);
+      this.obstacles[r] = Array(BOARD_COLS).fill(null);
     }
   }
 
   build(): void {
     for (let r = 0; r < BOARD_ROWS; r++) {
-      for (let c = 0; c < BOARD_COLS; c++) {
-        this.spawnTile(r, c, true);
-      }
+      for (let c = 0; c < BOARD_COLS; c++) this.spawnTile(r, c, true);
     }
+
+    this.levelConfig.obstacles.forEach((cfg) => {
+      if (cfg.row < 0 || cfg.row >= BOARD_ROWS || cfg.col < 0 || cfg.col >= BOARD_COLS) return;
+      const o = new Obstacle(this.scene, this.toX(cfg.col), this.toY(cfg.row), cfg);
+      this.obstacles[cfg.row][cfg.col] = o;
+      if (cfg.type === 'stone') {
+        this.grid[cfg.row][cfg.col]?.sprite.setAlpha(0);
+      }
+    });
+
+    this.pushObstacleStats();
   }
 
   private spawnTile(row: number, col: number, init = false): void {
@@ -40,8 +56,8 @@ export class Board {
       row,
       col,
       special: SpecialType.None,
-      blockerIce: Math.random() < this.blockerConfig.iceChance ? Phaser.Math.Between(1, 2) : 0,
-      blockerChain: Math.random() < this.blockerConfig.chainChance,
+      blockerIce: 0,
+      blockerChain: false,
     });
     this.grid[row][col] = t;
     t.sprite.on('pointerdown', () => this.trySelect(t));
@@ -57,6 +73,15 @@ export class Board {
     return Math.abs(a.data.row - b.data.row) + Math.abs(a.data.col - b.data.col) === 1;
   }
 
+  private isChainLocked(row: number, col: number): boolean {
+    const o = this.obstacles[row][col];
+    return o?.obstacleType === 'chain';
+  }
+
+  private isStoneCell(row: number, col: number): boolean {
+    return this.obstacles[row][col]?.obstacleType === 'stone';
+  }
+
   private trySelect(tile: Tile): void {
     if (this.busy) return;
     if (!this.selected) {
@@ -70,6 +95,7 @@ export class Board {
     this.selected = null;
     if (first === tile) return;
     if (!this.areAdjacent(first, tile)) return;
+    if (this.isChainLocked(first.data.row, first.data.col) || this.isChainLocked(tile.data.row, tile.data.col)) return;
     void this.swapAndResolve(first, tile, true);
   }
 
@@ -89,14 +115,6 @@ export class Board {
       this.anim.smoothSwap(b.sprite, this.toX(b.data.col), this.toY(b.data.row)),
     ]);
 
-    if (this.triggerSpecialCombo(a, b)) {
-      if (consumeMove) this.onMove();
-      await this.collapse();
-      await this.resolveCascade(1);
-      this.busy = false;
-      return;
-    }
-
     const matches = this.findMatches();
     if (!matches.length) {
       this.swapRefs(a, b);
@@ -110,49 +128,9 @@ export class Board {
 
     if (consumeMove) this.onMove();
     await this.resolveCascade(1);
+    await this.spreadHoneyAndChocolate();
+    this.pushObstacleStats();
     this.busy = false;
-  }
-
-  private triggerSpecialCombo(a: Tile, b: Tile): boolean {
-    if (a.data.special === SpecialType.None && b.data.special === SpecialType.None) return false;
-
-    const blast: Array<{ row: number; col: number }> = [];
-    if (a.data.special === SpecialType.StripedRow && b.data.special === SpecialType.StripedCol ||
-      a.data.special === SpecialType.StripedCol && b.data.special === SpecialType.StripedRow) {
-      for (let c = 0; c < BOARD_COLS; c++) blast.push({ row: a.data.row, col: c });
-      for (let r = 0; r < BOARD_ROWS; r++) blast.push({ row: r, col: a.data.col });
-    } else if (
-      [a.data.special, b.data.special].includes(SpecialType.StripedRow) &&
-      [a.data.special, b.data.special].includes(SpecialType.Bomb)
-    ) {
-      for (let r = Math.max(0, a.data.row - 1); r <= Math.min(BOARD_ROWS - 1, a.data.row + 1); r++) {
-        for (let c = 0; c < BOARD_COLS; c++) blast.push({ row: r, col: c });
-      }
-    } else if (a.data.special === SpecialType.Rainbow || b.data.special === SpecialType.Rainbow) {
-      const targetType = a.data.special === SpecialType.Rainbow ? b.data.type : a.data.type;
-      for (let r = 0; r < BOARD_ROWS; r++) for (let c = 0; c < BOARD_COLS; c++) {
-        if (this.grid[r][c]?.data.type === targetType) blast.push({ row: r, col: c });
-      }
-    } else {
-      return false;
-    }
-
-    const uniq = new Set(blast.map((b) => `${b.row}-${b.col}`));
-    uniq.forEach((key) => {
-      const [r, c] = key.split('-').map(Number);
-      const tile = this.grid[r][c];
-      if (!tile) return;
-      const color = tile.getTintColor();
-      this.particles.burst(tile.sprite.x, tile.sprite.y, color);
-      if (tile.data.special === SpecialType.Bomb) this.particles.boardShake(0.005, 260);
-      void this.anim.clear(tile.sprite).then(() => tile.sprite.destroy());
-      this.onScore(SCORE.BASE_CLEAR * 2, this.toX(c), this.toY(r), 2);
-      this.grid[r][c] = null;
-    });
-
-    a.data.special = SpecialType.None;
-    b.data.special = SpecialType.None;
-    return true;
   }
 
   private findMatches(): Match[] {
@@ -210,34 +188,35 @@ export class Board {
       if (m.special) specialsToCreate.push(m.special);
     });
 
+    const obstacleHits = new Set<string>();
     const clears: Promise<void>[] = [];
     for (const key of clearSet) {
       const [r, c] = key.split('-').map(Number);
       const tile = this.grid[r][c];
       if (!tile) continue;
-      if (tile.data.blockerChain) { tile.data.blockerChain = false; tile.redrawBlockers(this.scene); continue; }
-      if (tile.data.blockerIce > 0) { tile.data.blockerIce--; tile.redrawBlockers(this.scene); continue; }
 
       const color = tile.getTintColor();
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
-      if (tile.data.special === SpecialType.Bomb) this.particles.ember(tile.sprite.x, tile.sprite.y);
       clears.push(tile.playMatchReaction(this.scene).then(() => this.anim.clear(tile.sprite)).then(() => tile.sprite.destroy()));
       this.grid[r][c] = null;
       this.onScore(SCORE.BASE_CLEAR * combo, this.toX(c), this.toY(r), combo);
+
+      for (let rr = r - 1; rr <= r + 1; rr++) {
+        for (let cc = c - 1; cc <= c + 1; cc++) {
+          if (rr < 0 || rr >= BOARD_ROWS || cc < 0 || cc >= BOARD_COLS || (rr === r && cc === c)) continue;
+          obstacleHits.add(`${rr}-${cc}`);
+        }
+      }
     }
 
     await Promise.all(clears);
-
-    if (clearSet.size >= 4) this.particles.boardShake(0.004 + Math.min(clearSet.size, 8) * 0.0002, 180 + clearSet.size * 20);
-    if (combo > 1) this.anim.comboPopup(combo, this.scene.scale.width / 2, 240);
+    await this.damageObstacles(obstacleHits);
 
     specialsToCreate.forEach((s) => {
       const host = this.grid[s.row][s.col];
       if (host) {
         host.data.special = s.type;
         host.refreshSpecialVisual(this.scene);
-        const flash = this.scene.add.rectangle(host.sprite.x, host.sprite.y, 82, 82, 0xffffff, 0.9);
-        this.scene.tweens.add({ targets: flash, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
         this.particles.sparkle(host.sprite.x, host.sprite.y);
         SpecialTile.style(host, this.scene);
       }
@@ -247,29 +226,111 @@ export class Board {
     await this.resolveCascade(combo + 1);
   }
 
+  private async damageObstacles(hitSet: Set<string>): Promise<void> {
+    const actions: Promise<void>[] = [];
+    hitSet.forEach((key) => {
+      const [r, c] = key.split('-').map(Number);
+      const obstacle = this.obstacles[r][c];
+      if (!obstacle || obstacle.obstacleType === 'stone') return;
+
+      actions.push((async () => {
+        const shouldDestroy = await obstacle.damage(this.scene, 1);
+        if (shouldDestroy) {
+          await obstacle.destroyAnimated(this.scene);
+          this.obstacles[r][c] = null;
+        }
+      })());
+    });
+    await Promise.all(actions);
+  }
+
+  private async spreadHoneyAndChocolate(): Promise<void> {
+    const add: Array<{ row: number; col: number; type: ObstacleType; hp: number }> = [];
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      for (let c = 0; c < BOARD_COLS; c++) {
+        const o = this.obstacles[r][c];
+        if (o?.obstacleType === 'honey') {
+          const down = this.grid[r + 1]?.[c];
+          if (down?.sprite.active) {
+            this.scene.tweens.add({ targets: down.sprite, duration: 120, x: down.sprite.x + 3, yoyo: true, repeat: 1 });
+          }
+        }
+        if (o?.obstacleType === 'chocolate') {
+          const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+          for (const [dr, dc] of dirs) {
+            const rr = r + dr, cc = c + dc;
+            if (rr < 0 || rr >= BOARD_ROWS || cc < 0 || cc >= BOARD_COLS) continue;
+            if (!this.obstacles[rr][cc] && !this.isStoneCell(rr, cc)) {
+              add.push({ row: rr, col: cc, type: 'chocolate', hp: 1 });
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    add.forEach((cfg) => {
+      if (this.obstacles[cfg.row][cfg.col]) return;
+      const o = new Obstacle(this.scene, this.toX(cfg.col), this.toY(cfg.row), cfg);
+      o.setScale(0.1);
+      this.scene.tweens.add({ targets: o, scale: 1, duration: 180, ease: 'Back.easeOut' });
+      this.obstacles[cfg.row][cfg.col] = o;
+    });
+  }
+
   private async collapse(): Promise<void> {
     const tweens: Promise<void>[] = [];
     for (let c = 0; c < BOARD_COLS; c++) {
       let pointer = BOARD_ROWS - 1;
       for (let r = BOARD_ROWS - 1; r >= 0; r--) {
+        if (this.isStoneCell(r, c)) {
+          pointer = r - 1;
+          continue;
+        }
+
         const tile = this.grid[r][c];
         if (!tile) continue;
+        while (pointer >= 0 && this.isStoneCell(pointer, c)) pointer--;
+        if (pointer < 0) break;
+
         if (r !== pointer) {
           this.grid[pointer][c] = tile;
           this.grid[r][c] = null;
           tile.setGridPosition(pointer, c);
           tweens.push(new Promise((resolve) => {
-            this.scene.tweens.add({ targets: tile.sprite, y: this.toY(pointer), duration: ANIM.FALL_MS + c * 10, ease: 'Quad.easeIn', delay: c * ANIM.CASCADE_DELAY_MS, onComplete: () => {
-              this.scene.tweens.add({ targets: tile.sprite, y: tile.sprite.y - 8, yoyo: true, duration: 140, ease: 'Bounce.easeOut', onComplete: () => resolve() });
-            } });
+            this.scene.tweens.add({
+              targets: tile.sprite,
+              y: this.toY(pointer),
+              duration: ANIM.FALL_MS + c * 10,
+              ease: 'Quad.easeIn',
+              delay: c * ANIM.CASCADE_DELAY_MS,
+              onComplete: () => resolve(),
+            });
           }));
         }
         pointer--;
       }
       for (let r = pointer; r >= 0; r--) {
+        if (this.isStoneCell(r, c)) continue;
         this.spawnTile(r, c);
       }
     }
     await Promise.all(tweens);
+  }
+
+  private pushObstacleStats(): void {
+    const stats: ObstacleStats = {
+      ice: { total: this.levelConfig.objectiveTargets.ice ?? 0, cleared: 0 },
+      chain: { total: this.levelConfig.objectiveTargets.chain ?? 0, cleared: 0 },
+    };
+
+    const currentIce = this.obstacles.flat().filter((o) => o?.obstacleType === 'ice').length;
+    const currentChain = this.obstacles.flat().filter((o) => o?.obstacleType === 'chain').length;
+
+    stats.ice.cleared = Math.max(0, stats.ice.total - currentIce);
+    stats.chain.cleared = Math.max(0, stats.chain.total - currentChain);
+
+    this.onObstacleUpdate(stats);
   }
 }
