@@ -21,7 +21,7 @@ export class Obstacle extends Phaser.GameObjects.Sprite {
     this.hp = config.hp;
     this.row = config.row;
     this.col = config.col;
-    this.setDisplaySize(82, 82);
+    this.setDisplaySize(62, 62);
     this.setDepth(this.obstacleType === 'ice' || this.obstacleType === 'chain' ? 28 : 25);
     scene.add.existing(this);
     this.setAlpha(this.obstacleType === 'bubble' ? 0.88 : 1);
@@ -30,21 +30,21 @@ export class Obstacle extends Phaser.GameObjects.Sprite {
   static frameFor(type: ObstacleType, hp: number): number {
     switch (type) {
       case 'ice':
-        return Phaser.Math.Clamp(2 - hp, 0, 2);
+        return Phaser.Math.Clamp(3 - hp, 0, 3);
       case 'chain':
-        return hp >= 2 ? 9 : 8;
+        return hp >= 2 ? 4 : hp === 1 ? 5 : 7;
       case 'stone':
-        return 17;
+        return 12;
       case 'honey':
-        return 24;
+        return Phaser.Math.Clamp(11 - hp, 8, 11);
       case 'chocolate':
-        return 25;
+        return Phaser.Math.Clamp(15 - hp, 12, 15);
       case 'bubble':
-        return 27;
+        return 16;
       case 'void':
-        return 31;
+        return 19;
       default:
-        return 32;
+        return 19;
     }
   }
 
