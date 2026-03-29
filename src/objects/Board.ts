@@ -142,7 +142,7 @@ export class Board {
       const [r, c] = key.split('-').map(Number);
       const tile = this.grid[r][c];
       if (!tile) return;
-      const color = Phaser.Display.Color.HSVToRGB(tile.data.type / BERRY_TYPES, 0.7, 1).color;
+      const color = tile.getTintColor();
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
       if (tile.data.special === SpecialType.Bomb) this.particles.boardShake(0.005, 260);
       void this.anim.clear(tile.sprite).then(() => tile.sprite.destroy());
@@ -218,10 +218,10 @@ export class Board {
       if (tile.data.blockerChain) { tile.data.blockerChain = false; tile.redrawBlockers(this.scene); continue; }
       if (tile.data.blockerIce > 0) { tile.data.blockerIce--; tile.redrawBlockers(this.scene); continue; }
 
-      const color = Phaser.Display.Color.HSVToRGB(tile.data.type / BERRY_TYPES, 0.7, 1).color;
+      const color = tile.getTintColor();
       this.particles.burst(tile.sprite.x, tile.sprite.y, color);
       if (tile.data.special === SpecialType.Bomb) this.particles.ember(tile.sprite.x, tile.sprite.y);
-      clears.push(this.anim.clear(tile.sprite).then(() => tile.sprite.destroy()));
+      clears.push(tile.playMatchReaction(this.scene).then(() => this.anim.clear(tile.sprite)).then(() => tile.sprite.destroy()));
       this.grid[r][c] = null;
       this.onScore(SCORE.BASE_CLEAR * combo, this.toX(c), this.toY(r), combo);
     }
