@@ -17,24 +17,24 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.fadeIn(220, 0, 0, 0);
 
-    this.add.image(360, 96, 'ui_elements', 'panel').setDisplaySize(700, 170);
-    this.add.image(160, 84, 'ui_elements', 'score_plate').setDisplaySize(180, 78);
-    this.add.image(540, 84, 'ui_elements', 'moves_plate').setDisplaySize(180, 78);
-    this.add.image(360, 136, 'ui_elements', 'progress_bar_bg').setDisplaySize(430, 24);
-    this.fill = this.add.image(145, 136, 'ui_elements', 'progress_fill').setDisplaySize(1, 16).setOrigin(0, 0.5);
+    this.add.image(360, 96, 'panel').setDisplaySize(700, 170);
+    this.add.image(160, 84, 'score_plate').setDisplaySize(180, 78);
+    this.add.image(540, 84, 'moves_plate').setDisplaySize(180, 78);
+    this.add.image(360, 136, 'progress_bar_bg').setDisplaySize(430, 24);
+    this.fill = this.add.image(145, 136, 'progress_fill').setDisplaySize(1, 16).setOrigin(0, 0.5);
     this.targetMarker = this.add.rectangle(145 + 420 * 0.83, 136, 4, 28, 0xffffff, 0.9);
 
     this.levelText = this.add.text(52, 42, 'L1', { fontSize: '36px', color: '#ffd6ff', fontStyle: '900', stroke: '#3a1847', strokeThickness: 6 });
     this.scoreText = this.add.text(132, 66, '0', { fontSize: '32px', color: '#ffffff', fontStyle: '900', stroke: '#2d0f3b', strokeThickness: 6 });
     this.movesText = this.add.text(522, 66, '0', { fontSize: '30px', color: '#ffffff', fontStyle: '800', stroke: '#2d0f3b', strokeThickness: 6 });
 
-    [250, 360, 510].forEach((x) => this.add.image(x, 136, 'ui_elements', 'star').setDisplaySize(24, 24));
+    [250, 360, 510].forEach((x) => this.add.image(x, 136, 'star').setDisplaySize(24, 24));
 
     this.add.image(118, 178, 'obstacles_tiles', 0).setDisplaySize(28, 28);
     this.add.image(278, 178, 'obstacles_tiles', 8).setDisplaySize(28, 28);
     this.objectiveText = this.add.text(140, 162, 'Ice: 0/0  Chain: 0/0', { fontSize: '24px', color: '#fff7cf', fontStyle: '700', stroke: '#402252', strokeThickness: 5 });
 
-    const pauseBtn = this.add.image(664, 100, 'ui_elements', 'pause_button').setDisplaySize(58, 58).setInteractive({ useHandCursor: true });
+    const pauseBtn = this.add.image(664, 100, 'pause_button').setDisplaySize(58, 58).setInteractive({ useHandCursor: true });
     pauseBtn.on('pointerover', () => pauseBtn.setScale(1.07));
     pauseBtn.on('pointerout', () => pauseBtn.setScale(1));
     pauseBtn.on('pointerdown', () => pauseBtn.setScale(0.94));

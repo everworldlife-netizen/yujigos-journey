@@ -26,9 +26,9 @@ export class Tile {
   constructor(scene: Phaser.Scene, x: number, y: number, data: TileData) {
     this.data = data;
     this.sprite = scene.add.container(x, y);
-    this.gem = scene.add.sprite(0, 0, 'berry_tiles', data.type).setDisplaySize(78, 78);
+    this.gem = scene.add.sprite(0, 0, 'berry_tiles', this.frameFor(0)).setDisplaySize(58, 58);
     this.sprite.add(this.gem);
-    this.sprite.setSize(82, 82);
+    this.sprite.setSize(64, 64);
     this.sprite.setInteractive({ useHandCursor: true });
 
     scene.tweens.add({
@@ -58,15 +58,15 @@ export class Tile {
   }
 
   getTintColor(): number {
-    return [0xff4f8f, 0x4f8fff, 0xb45cff, 0xff7a4f, 0x4fe0a0, 0xffd45a][this.data.type] ?? 0xffffff;
+    return [0xff4f8f, 0x4f8fff, 0x4fe0a0, 0xffd45a, 0xb45cff, 0xff7a4f, 0xff8ccc, 0xe8f7ff][this.data.type] ?? 0xffffff;
   }
 
   setBaseFrame(): void {
-    this.gem.setFrame(this.data.type);
+    this.gem.setFrame(this.frameFor(0));
   }
 
   async playMatchReaction(scene: Phaser.Scene): Promise<void> {
-    this.gem.setFrame(this.data.type + 8);
+    this.gem.setFrame(this.frameFor(1));
     await new Promise<void>((resolve) => {
       scene.tweens.add({
         targets: this.gem,
@@ -86,17 +86,17 @@ export class Tile {
       return;
     }
 
-    this.gem.setFrame(this.data.type + 16);
+    this.gem.setFrame(this.frameFor(2));
 
     const frameMap: Record<SpecialType, number> = {
       [SpecialType.None]: 0,
       [SpecialType.StripedRow]: 0,
-      [SpecialType.StripedCol]: 1,
-      [SpecialType.Rainbow]: 2,
-      [SpecialType.Bomb]: 3,
+      [SpecialType.StripedCol]: 4,
+      [SpecialType.Bomb]: 8,
+      [SpecialType.Rainbow]: 12,
     };
 
-    const overlay = scene.add.sprite(0, 0, 'power_ups', frameMap[this.data.special]).setDisplaySize(72, 72).setAlpha(0.95);
+    const overlay = scene.add.sprite(0, 0, 'power_ups', frameMap[this.data.special]).setDisplaySize(58, 58).setAlpha(0.95);
     this.specialLayer = overlay;
     this.sprite.add(overlay);
 
@@ -107,17 +107,21 @@ export class Tile {
     this.applyFrameByState();
   }
 
+  private frameFor(variant: 0 | 1 | 2 | 3): number {
+    return this.data.type * 4 + variant;
+  }
+
   private applyFrameByState(): void {
     if (this.data.blockerChain || this.data.blockerIce > 0) {
-      this.gem.setFrame(this.data.type + 24);
+      this.gem.setFrame(this.frameFor(3));
       return;
     }
 
     if (this.data.special !== SpecialType.None) {
-      this.gem.setFrame(this.data.type + 16);
+      this.gem.setFrame(this.frameFor(2));
       return;
     }
 
-    this.gem.setFrame(this.data.type);
+    this.gem.setFrame(this.frameFor(0));
   }
 }

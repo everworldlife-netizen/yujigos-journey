@@ -15,22 +15,24 @@ export type LevelObjective = {
 };
 
 const baseCells = [
+  { row: 1, col: 1 },
+  { row: 1, col: 3 },
+  { row: 1, col: 5 },
   { row: 2, col: 2 },
   { row: 2, col: 4 },
+  { row: 2, col: 6 },
+  { row: 3, col: 1 },
   { row: 3, col: 3 },
+  { row: 3, col: 5 },
   { row: 4, col: 2 },
   { row: 4, col: 4 },
-  { row: 5, col: 3 },
-  { row: 1, col: 3 },
-  { row: 6, col: 3 },
-  { row: 3, col: 1 },
-  { row: 3, col: 5 },
+  { row: 4, col: 6 },
   { row: 5, col: 1 },
+  { row: 5, col: 3 },
   { row: 5, col: 5 },
-  { row: 0, col: 0 },
-  { row: 0, col: 6 },
-  { row: 8, col: 0 },
-  { row: 8, col: 6 },
+  { row: 6, col: 2 },
+  { row: 6, col: 4 },
+  { row: 6, col: 6 },
 ];
 
 function patternedObstacleSet(level: number): ObstacleConfig[] {
@@ -39,7 +41,7 @@ function patternedObstacleSet(level: number): ObstacleConfig[] {
 
   const add = (type: ObstacleType, hp: number, count: number) => {
     cells.slice(0, count).forEach(({ row, col }, idx) => {
-      list.push({ row: (row + idx) % 9, col, type, hp });
+      list.push({ row: (row + idx) % 8, col, type, hp });
     });
   };
 
