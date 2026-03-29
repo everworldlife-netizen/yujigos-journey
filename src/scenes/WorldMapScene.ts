@@ -14,10 +14,7 @@ export class WorldMapScene extends Phaser.Scene {
     const totalH = 4400;
 
     const container = this.add.container(0, 0);
-    const biomes = ['biome_forest', 'biome_ocean', 'biome_desert', 'biome_snow', 'biome_twilight'] as const;
-    for (let b = 0; b < 5; b++) {
-      container.add(this.add.image(width / 2, totalH - b * 880 - 440, 'world_map_elements', biomes[b]).setDisplaySize(width, 880));
-    }
+    container.add(this.add.image(width / 2, totalH / 2, 'bg_world_map').setDisplaySize(width, totalH));
 
     const pathPoints: Array<{x: number; y: number}> = [];
     for (let i = 1; i <= 50; i++) pathPoints.push({ x: width / 2 + Math.sin(i * 0.7) * 170, y: totalH - i * 80 });

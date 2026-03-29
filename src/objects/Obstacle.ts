@@ -85,7 +85,8 @@ export class Obstacle extends Phaser.GameObjects.Sprite {
   }
 
   async destroyAnimated(scene: Phaser.Scene): Promise<void> {
-    const particles = scene.add.particles(this.x, this.y, 'particle-circle', {
+    const particles = scene.add.particles(this.x, this.y, 'particle_sheet', {
+      frame: [48, 49, 50, 51, 52],
       speed: { min: 90, max: 260 },
       scale: { start: 0.5, end: 0 },
       alpha: { start: 0.9, end: 0 },

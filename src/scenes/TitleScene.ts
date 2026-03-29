@@ -7,7 +7,7 @@ export class TitleScene extends Phaser.Scene {
     this.cameras.main.fadeIn(450, 8, 6, 20);
     const { width, height } = this.scale;
 
-    this.add.image(width / 2, height / 2, 'world_map_elements', 'biome_twilight').setDisplaySize(width, height);
+    this.add.image(width / 2, height / 2, 'bg_title_screen').setDisplaySize(width, height);
     this.add.image(width / 2, 220, 'world_map_elements', 'title_banner').setDisplaySize(620, 220);
 
     for (let i = 0; i < 24; i++) {
