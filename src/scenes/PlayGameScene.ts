@@ -71,6 +71,11 @@ export class PlayGameScene extends Phaser.Scene {
     return new Phaser.Math.Vector2(this.boardX + col * this.tileSize + this.tileSize / 2, this.boardY + row * this.tileSize + this.tileSize / 2);
   }
 
+  private textureForCell(cell: GemCell): string {
+    if (cell.special === 'none') return `gem-${cell.gemType}`;
+    return `gem-${cell.gemType}-${cell.special}`;
+  }
+
   private renderBoard(): void {
     this.add.rectangle(this.boardX + 4 * this.tileSize, this.boardY + 4 * this.tileSize, this.tileSize * 8 + 14, this.tileSize * 8 + 14, 0x090c1b, 0.4)
       .setStrokeStyle(3, 0x8ad4ff, 0.4);
@@ -82,7 +87,7 @@ export class PlayGameScene extends Phaser.Scene {
 
   private createGemSprite(cell: GemCell): void {
     const p = this.pos(cell.row, cell.col);
-    const sprite = this.add.image(p.x, p.y, `gem-${cell.gemType}`).setDisplaySize(62, 62).setInteractive();
+    const sprite = this.add.image(p.x, p.y, this.textureForCell(cell)).setDisplaySize(62, 62).setInteractive();
     sprite.on('pointerdown', () => this.handleSelect(cell));
     const entry: GemSprite = { cell, sprite };
     this.gems.set(this.keyFor(cell), entry);
@@ -147,6 +152,7 @@ export class PlayGameScene extends Phaser.Scene {
     const steps = this.model.resolveCascade(matches);
     for (const step of steps) {
       await this.animateStep(step.removed, step.drops, step.chain);
+      this.syncGemTextures();
       this.score += step.score;
       this.updateScoreUI(step.chain, step.score);
     }
@@ -233,6 +239,19 @@ export class PlayGameScene extends Phaser.Scene {
       if (chain >= 3) this.cameras.main.shake(140, 0.005 * chain);
       this.time.delayedCall(moveDuration + 150, () => resolve());
     });
+  }
+
+  private syncGemTextures(): void {
+    for (let r = 0; r < this.model.rows; r += 1) {
+      for (let c = 0; c < this.model.cols; c += 1) {
+        const cell = this.model.grid[r][c];
+        const entry = this.gems.get(this.keyFor(cell));
+        if (!entry) continue;
+        const texture = this.textureForCell(cell);
+        if (entry.sprite.texture.key !== texture) entry.sprite.setTexture(texture);
+        this.decorateObstacle(entry);
+      }
+    }
   }
 
   private updateScoreUI(chain: number, scoreGain: number): void {
