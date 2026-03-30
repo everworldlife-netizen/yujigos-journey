@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprite Slicer Tool</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #12131a;
+      --panel: #1b1e27;
+      --panel-soft: #232736;
+      --line: #2f3550;
+      --text: #e9ecff;
+      --muted: #9da6d8;
+      --accent: #8a63ff;
+      --accent-2: #4fd1ff;
+      --danger: #ff6d9a;
+      --success: #53e3a6;
+      --shadow: 0 20px 45px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #23283b 0%, #12131a 52%);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: min(1600px, 95vw);
+      margin: 24px auto 32px;
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent), var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: calc(100vh - 56px);
+      overflow: auto;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      margin: 0;
+      letter-spacing: .3px;
+    }
+
+    .subtle { color: var(--muted); font-size: .88rem; margin: 0; }
+    .section { display: grid; gap: 10px; }
+
+    label { font-size: .83rem; color: var(--muted); font-weight: 600; }
+
+    select, input, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: .92rem;
+      padding: 10px;
+    }
+
+    input[type="number"] { appearance: textfield; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    button {
+      cursor: pointer;
+      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+      font-weight: 600;
+    }
+
+    button:hover { border-color: #5262a8; }
+    button:active { transform: translateY(1px); }
+
+    .btn-main {
+      background: linear-gradient(135deg, var(--accent), #5963ff);
+      border-color: transparent;
+    }
+    .btn-secondary { background: #21263a; }
+    .btn-danger { background: #342231; border-color: #5d3553; }
+
+    .dropzone {
+      border: 1.5px dashed #4c5380;
+      border-radius: 12px;
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 14px;
+      color: var(--muted);
+      background: rgba(255,255,255,.02);
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .dropzone.dragover {
+      background: rgba(138,99,255,.12);
+      border-color: #8b7eff;
+      color: #d7d2ff;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-rows: minmax(220px, 60vh) 1fr;
+      gap: 14px;
+      padding: 14px;
+      min-height: 80vh;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background:
+        conic-gradient(#1a1e2b 25%, #23283a 0 50%, #1a1e2b 0 75%, #23283a 0) 0 0/24px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #sheetCanvas { max-width: 100%; max-height: 100%; display: block; cursor: crosshair; }
+
+    .status {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      background: rgba(6,8,16,.75);
+      border: 1px solid #384061;
+      border-radius: 9px;
+      padding: 6px 9px;
+      font-size: .76rem;
+      color: #cfd5ff;
+      backdrop-filter: blur(3px);
+    }
+
+    .grid-note { font-size: .78rem; color: var(--muted); }
+
+    .previews {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(10,12,18,.35);
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      background: #1a1e2a;
+      border: 1px solid #323854;
+      border-radius: 10px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .thumb {
+      width: 100%;
+      aspect-ratio: 1;
+      border: 1px solid #3d4568;
+      border-radius: 8px;
+      background:
+        conic-gradient(#202536 25%, #2b3247 0 50%, #202536 0 75%, #2b3247 0) 0 0/14px 14px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .thumb img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+
+    .name {
+      font-size: .78rem;
+      line-height: 1.25;
+      color: #d9ddff;
+      min-height: 2.2em;
+      word-break: break-word;
+    }
+
+    .small {
+      font-size: .73rem;
+      color: var(--muted);
+    }
+
+    .inline {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .inline button { width: auto; padding: 7px 9px; font-size: .75rem; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 1080px) {
+      .shell { grid-template-columns: 1fr; }
+      .controls { max-height: none; }
+      .workspace { min-height: 65vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="panel controls">
+      <div>
+        <h1>Sprite Slicer Tool</h1>
+        <p class="subtle">Slice sprite sheets into <code>public/assets/...</code> PNG outputs.</p>
+      </div>
+
+      <div class="section">
+        <label for="presetSelect">Sheet preset</label>
+        <select id="presetSelect"></select>
+      </div>
+
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <div>
+          <strong>Drop image files here</strong><br />
+          <span class="small">or click to browse. Use multiple files for Backgrounds.</span>
+        </div>
+      </div>
+      <input id="fileInput" type="file" accept="image/*" class="hidden" multiple />
+
+      <div id="gridControls" class="section">
+        <div class="row">
+          <div><label>Rows</label><input id="rowsInput" type="number" min="1" /></div>
+          <div><label>Cols</label><input id="colsInput" type="number" min="1" /></div>
+        </div>
+        <div class="row">
+          <div><label>Offset X</label><input id="offsetXInput" type="number" value="0" /></div>
+          <div><label>Offset Y</label><input id="offsetYInput" type="number" value="0" /></div>
+        </div>
+        <div class="row">
+          <div><label>Gap X</label><input id="gapXInput" type="number" value="0" /></div>
+          <div><label>Gap Y</label><input id="gapYInput" type="number" value="0" /></div>
+        </div>
+        <div class="row">
+          <div><label>Trim X</label><input id="trimXInput" type="number" value="0" /></div>
+          <div><label>Trim Y</label><input id="trimYInput" type="number" value="0" /></div>
+        </div>
+        <div class="inline">
+          <button id="resetGridBtn" class="btn-secondary">Reset Grid</button>
+          <button id="autoGridBtn" class="btn-secondary">Apply Inputs</button>
+        </div>
+        <div class="grid-note">Tip: drag cyan grid lines directly to adjust imperfect sheets.</div>
+      </div>
+
+      <div id="backgroundNamesWrap" class="section hidden"></div>
+      <div id="manualRectWrap" class="section hidden"></div>
+
+      <div class="section">
+        <button id="downloadAllBtn" class="btn-main">Download All (ZIP)</button>
+      </div>
+      <p id="hint" class="subtle">Load an image to begin.</p>
+    </aside>
+
+    <section class="panel workspace">
+      <div class="canvas-wrap">
+        <canvas id="sheetCanvas" width="900" height="540"></canvas>
+        <div id="canvasStatus" class="status">No image loaded</div>
+      </div>
+      <div class="previews">
+        <div id="cards" class="cards"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const PRESETS = {
+      'Berry Tiles (Clean)': {
+        type: 'grid', rows: 5, cols: 8, folder: 'tiles/',
+        names: [
+          'strawberry','blueberry','raspberry','pink_raspberry','blackberry','golden_berry','moon_berry','ice_berry',
+          'strawberry_happy','blueberry_happy','raspberry_happy','pink_raspberry_happy','blackberry_happy','golden_berry_happy','moon_berry_happy','ice_berry_happy',
+          'strawberry_matched','blueberry_matched','raspberry_matched','pink_raspberry_matched','blackberry_matched','golden_berry_matched','moon_berry_matched','ice_berry_matched',
+          'strawberry_frozen','blueberry_frozen','raspberry_frozen','pink_raspberry_frozen','blackberry_frozen','golden_berry_frozen','moon_berry_frozen','ice_berry_frozen',
+          'special_rainbow','special_bow','special_swirl','special_star','special_heart','special_bomb',null,null
+        ]
+      },
+      'Yujigo Poses': {
+        type: 'grid', rows: 5, cols: 4, folder: 'characters/yujigo/',
+        names: ['idle','whistle','sad','cry','cheer-left','cheer-right','point','present','nervous','pray','side','determined','wave-left','berry-hold','celebrate','surprised','berry-magic','bow','berry-pick','icon']
+      },
+      'Mochi Poses': {
+        type: 'grid', rows: 5, cols: 4, folder: 'characters/mochi/',
+        names: ['idle','hearts','surprised','sleep','walk','dance','curious','pray','sit','happy','sad','run','look','smile','worry','dash','wink','berry-eat','bush-hide','mini'],
+        extras: [{ name: 'with-yujigo', row: 4, col: 4 }]
+      },
+      'NPC Sprite Sheet': {
+        type: 'grid', rows: 3, cols: 6, folder: 'characters/npcs/',
+        rowLabels: ['idle','action','special'], colLabels: ['hedgehog','fox','hummingbird','porcupine','butterfly','bunny'],
+        naming: (r,c,p)=>`${p.colLabels[c]}_${p.rowLabels[r]}`
+      },
+      'UI Elements': {
+        type: 'grid', rows: 4, cols: 6, folder: 'ui/',
+        names: ['btn-play','btn-pause','btn-settings','btn-back','btn-shop','btn-collection','display-score','display-moves','display-stars','display-level','display-coins','display-berry-goal','star-empty','star-bronze','star-silver','star-gold','progress-bar','progress-bar-full','banner-victory','banner-defeat','dialog-box','btn-close','btn-confirm','btn-info']
+      },
+      'Power-ups': {
+        type: 'grid', rows: 3, cols: 5, folder: 'powerups/',
+        names: ['strawberry-horizontal','blueberry-vertical','raspberry-cross','blackberry-x','cloudberry-all','bomb','rainbow','freeze','magnet','x2','plus5','shuffle','hint','berry-drop','splash']
+      },
+      'World Map Elements': {
+        type: 'grid', rows: 4, cols: 5, folder: 'map/',
+        names: ['node-locked','node-available','node-1star','node-2star','node-3star','path-dotted','path-curved','path-footprints','bridge','path-thorns','landmark-pillow-patch','landmark-frostberry','landmark-sunberry','landmark-bramble','landmark-moonberry','deco-trees','deco-pond','deco-berry-bush','deco-cloud','deco-compass']
+      },
+      'Backgrounds': {
+        type: 'multi', folder: 'backgrounds/', options: ['title-bg','sunberry-meadow','frostberry-falls','enchanted-forest','cosmic-island','sunberry-desert','world-map']
+      },
+      'Board Frame': {
+        type: 'single', folder: 'board/', fixedName: 'board-frame'
+      },
+      'Effects': {
+        type: 'grid', rows: 1, cols: 5, folder: 'effects/', names: ['sparkle-star','sparkle-heart','sparkle-glow','sparkle-ring','sparkle-burst']
+      },
+      'Board Tiles & Obstacles (Full)': {
+        type: 'manual', folder: 'obstacles/',
+        names: ['ice-block-full','ice-block-cracked','ice-block-shattered','vine-left','vine-right','mossy-rock','dark-cloud','honey-drip','cage','rubble','spider','bubble']
+      }
+    };
+
+    const el = id => document.getElementById(id);
+    const presetSelect = el('presetSelect');
+    const dropzone = el('dropzone');
+    const fileInput = el('fileInput');
+    const canvas = el('sheetCanvas');
+    const ctx = canvas.getContext('2d');
+    const cards = el('cards');
+    const hint = el('hint');
+    const canvasStatus = el('canvasStatus');
+
+    const state = {
+      presetName: 'Berry Tiles (Clean)',
+      image: null,
+      files: [],
+      rows: 5,
+      cols: 8,
+      offsetX: 0, offsetY: 0, gapX: 0, gapY: 0, trimX: 0, trimY: 0,
+      vLines: [], hLines: [],
+      dragLine: null,
+      scale: 1, drawX: 0, drawY: 0, drawW: 0, drawH: 0,
+      manualRects: {}, manualTarget: null, drawingRect: null,
+      backgroundMap: []
+    };
+
+    const inputIds = ['rowsInput','colsInput','offsetXInput','offsetYInput','gapXInput','gapYInput','trimXInput','trimYInput'];
+
+    function init() {
+      Object.keys(PRESETS).forEach(name => {
+        const op = document.createElement('option'); op.value = name; op.textContent = name;
+        presetSelect.appendChild(op);
+      });
+      presetSelect.value = state.presetName;
+      presetSelect.addEventListener('change', () => setPreset(presetSelect.value));
+
+      dropzone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+      ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover');
+      }));
+      ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover');
+      }));
+      dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+      inputIds.forEach(id => el(id).addEventListener('input', applyGridInputs));
+      el('resetGridBtn').addEventListener('click', () => { initGridLines(); redraw(); renderSlices(); });
+      el('autoGridBtn').addEventListener('click', () => { initGridLines(); redraw(); renderSlices(); });
+      el('downloadAllBtn').addEventListener('click', downloadAll);
+
+      canvas.addEventListener('mousedown', onCanvasDown);
+      window.addEventListener('mousemove', onCanvasMove);
+      window.addEventListener('mouseup', onCanvasUp);
+
+      setPreset(state.presetName);
+      redraw();
+    }
+
+    function setPreset(name) {
+      state.presetName = name;
+      const p = PRESETS[name];
+      el('gridControls').classList.toggle('hidden', p.type !== 'grid');
+      el('backgroundNamesWrap').classList.toggle('hidden', p.type !== 'multi');
+      el('manualRectWrap').classList.toggle('hidden', p.type !== 'manual');
+      fileInput.multiple = p.type === 'multi';
+
+      if (p.type === 'grid') {
+        state.rows = p.rows; state.cols = p.cols;
+        el('rowsInput').value = p.rows; el('colsInput').value = p.cols;
+      }
+      if (p.type === 'manual') initManualPanel();
+      if (p.type === 'multi') renderBackgroundPanel();
+      if (state.image && p.type !== 'multi') {
+        initGridLines();
+        redraw();
+      }
+      renderSlices();
+    }
+
+    function applyGridInputs() {
+      state.rows = Math.max(1, +el('rowsInput').value || 1);
+      state.cols = Math.max(1, +el('colsInput').value || 1);
+      state.offsetX = +el('offsetXInput').value || 0;
+      state.offsetY = +el('offsetYInput').value || 0;
+      state.gapX = +el('gapXInput').value || 0;
+      state.gapY = +el('gapYInput').value || 0;
+      state.trimX = +el('trimXInput').value || 0;
+      state.trimY = +el('trimYInput').value || 0;
+    }
+
+    function handleFiles(fileList) {
+      const files = [...fileList].filter(f => f.type.startsWith('image/'));
+      if (!files.length) return;
+      const p = PRESETS[state.presetName];
+
+      if (p.type === 'multi') {
+        state.files = files;
+        state.backgroundMap = files.map((f, i) => ({ file: f, name: p.options[i % p.options.length] }));
+        renderBackgroundPanel();
+        renderSlices();
+        hint.textContent = `${files.length} background images ready.`;
+        return;
+      }
+
+      state.files = [files[0]];
+      loadImageFile(files[0]);
+      hint.textContent = `Loaded ${files[0].name}`;
+    }
+
+    function loadImageFile(file) {
+      const img = new Image();
+      img.onload = () => {
+        state.image = img;
+        initGridLines();
+        redraw();
+        renderSlices();
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function initGridLines() {
+      applyGridInputs();
+      if (!state.image) return;
+      const w = state.image.width - state.offsetX * 2 - state.gapX * (state.cols - 1);
+      const h = state.image.height - state.offsetY * 2 - state.gapY * (state.rows - 1);
+      const cw = w / state.cols;
+      const ch = h / state.rows;
+      state.vLines = [state.offsetX];
+      state.hLines = [state.offsetY];
+      for (let c = 1; c <= state.cols; c++) state.vLines.push(state.offsetX + c * cw + (c - 1) * state.gapX);
+      for (let r = 1; r <= state.rows; r++) state.hLines.push(state.offsetY + r * ch + (r - 1) * state.gapY);
+      state.manualRects = {};
+    }
+
+    function fitCanvas() {
+      if (!state.image) return;
+      const maxW = canvas.parentElement.clientWidth - 10;
+      const maxH = canvas.parentElement.clientHeight - 10;
+      const scale = Math.min(maxW / state.image.width, maxH / state.image.height, 1);
+      state.scale = scale;
+      state.drawW = Math.round(state.image.width * scale);
+      state.drawH = Math.round(state.image.height * scale);
+      canvas.width = Math.max(state.drawW, 200);
+      canvas.height = Math.max(state.drawH, 120);
+      state.drawX = 0; state.drawY = 0;
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const p = PRESETS[state.presetName];
+      if (!state.image) {
+        canvasStatus.textContent = p.type === 'multi' ? 'Drop multiple background images' : 'No image loaded';
+        return;
+      }
+      fitCanvas();
+      ctx.drawImage(state.image, 0, 0, state.drawW, state.drawH);
+      canvasStatus.textContent = `${state.image.width}×${state.image.height} px`;
+
+      if (p.type === 'grid') drawGrid();
+      if (p.type === 'manual') drawManualRects();
+    }
+
+    function drawGrid() {
+      ctx.save();
+      ctx.lineWidth = 1.25;
+      ctx.strokeStyle = 'rgba(79,209,255,.95)';
+      state.vLines.forEach(x => {
+        const sx = Math.round(x * state.scale) + .5;
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, state.drawH); ctx.stroke();
+      });
+      state.hLines.forEach(y => {
+        const sy = Math.round(y * state.scale) + .5;
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(state.drawW, sy); ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function drawManualRects() {
+      ctx.save();
+      Object.entries(state.manualRects).forEach(([name, r]) => {
+        const x = r.x * state.scale, y = r.y * state.scale, w = r.w * state.scale, h = r.h * state.scale;
+        ctx.strokeStyle = 'rgba(83,227,166,.95)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = 'rgba(10,14,24,.8)';
+        ctx.fillRect(x + 2, y + 2, Math.min(w - 4, 130), 18);
+        ctx.fillStyle = '#c6ffd8';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(name, x + 7, y + 15);
+      });
+      if (state.drawingRect) {
+        const d = state.drawingRect;
+        ctx.strokeStyle = 'rgba(255,109,154,.95)'; ctx.lineWidth = 2;
+        ctx.strokeRect(d.x * state.scale, d.y * state.scale, d.w * state.scale, d.h * state.scale);
+      }
+      ctx.restore();
+    }
+
+    function pointerToImage(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / state.scale;
+      const y = (e.clientY - rect.top) / state.scale;
+      return { x, y };
+    }
+
+    function onCanvasDown(e) {
+      const p = PRESETS[state.presetName];
+      if (!state.image) return;
+      const pt = pointerToImage(e);
+
+      if (p.type === 'manual') {
+        if (!state.manualTarget) return;
+        state.drawingRect = { x: pt.x, y: pt.y, w: 0, h: 0, sx: pt.x, sy: pt.y };
+        return;
+      }
+
+      if (p.type !== 'grid') return;
+      const hit = findGridLineHit(pt);
+      if (hit) state.dragLine = hit;
+    }
+
+    function onCanvasMove(e) {
+      const p = PRESETS[state.presetName];
+      if (!state.image) return;
+      const pt = pointerToImage(e);
+
+      if (p.type === 'manual' && state.drawingRect) {
+        const d = state.drawingRect;
+        d.x = Math.min(d.sx, pt.x); d.y = Math.min(d.sy, pt.y);
+        d.w = Math.abs(pt.x - d.sx); d.h = Math.abs(pt.y - d.sy);
+        redraw();
+        return;
+      }
+
+      if (!state.dragLine) return;
+      const minGap = 2;
+      if (state.dragLine.axis === 'v') {
+        const i = state.dragLine.index;
+        const left = state.vLines[i - 1] + minGap;
+        const right = state.vLines[i + 1] - minGap;
+        state.vLines[i] = clamp(pt.x, left, right);
+      } else {
+        const i = state.dragLine.index;
+        const top = state.hLines[i - 1] + minGap;
+        const bottom = state.hLines[i + 1] - minGap;
+        state.hLines[i] = clamp(pt.y, top, bottom);
+      }
+      redraw(); renderSlices();
+    }
+
+    function onCanvasUp() {
+      if (state.drawingRect) {
+        const d = state.drawingRect;
+        if (d.w > 4 && d.h > 4) {
+          state.manualRects[state.manualTarget] = { x: d.x, y: d.y, w: d.w, h: d.h };
+          renderSlices();
+          refreshManualList();
+        }
+      }
+      state.drawingRect = null;
+      state.dragLine = null;
+      redraw();
+    }
+
+    function findGridLineHit(pt) {
+      const threshold = 5 / state.scale;
+      for (let i = 1; i < state.vLines.length - 1; i++) if (Math.abs(pt.x - state.vLines[i]) <= threshold) return { axis:'v', index:i };
+      for (let i = 1; i < state.hLines.length - 1; i++) if (Math.abs(pt.y - state.hLines[i]) <= threshold) return { axis:'h', index:i };
+      return null;
+    }
+
+    function getGridSlices() {
+      const p = PRESETS[state.presetName];
+      const out = [];
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const idx = r * state.cols + c;
+          const x1 = state.vLines[c] + state.trimX;
+          const y1 = state.hLines[r] + state.trimY;
+          const x2 = state.vLines[c + 1] - state.trimX;
+          const y2 = state.hLines[r + 1] - state.trimY;
+          const w = Math.max(1, x2 - x1), h = Math.max(1, y2 - y1);
+          const name = resolveName(p, r, c, idx);
+          if (!name) continue;
+          out.push({ name: `${name}.png`, folder: p.folder, x: x1, y: y1, w, h });
+        }
+      }
+      if (p.extras) {
+        p.extras.forEach(extra => {
+          const rw = state.vLines[1]-state.vLines[0];
+          const rh = state.hLines[1]-state.hLines[0];
+          const x = state.vLines[0] + extra.col * rw;
+          const y = state.hLines[0] + extra.row * rh;
+          out.push({ name: `${extra.name}.png`, folder: p.folder, x, y, w: rw, h: rh });
+        });
+      }
+      return out;
+    }
+
+    function resolveName(p, r, c, idx) {
+      if (p.names) return p.names[idx] || null;
+      if (p.naming) return p.naming(r, c, p);
+      return `sprite-${r}-${c}`;
+    }
+
+    function getManualSlices() {
+      const p = PRESETS[state.presetName];
+      return p.names.filter(n => state.manualRects[n]).map(name => ({ ...state.manualRects[name], folder: p.folder, name: `${name}.png` }));
+    }
+
+    function renderSlices() {
+      cards.innerHTML = '';
+      const p = PRESETS[state.presetName];
+      let slices = [];
+
+      if (p.type === 'grid' && state.image) slices = getGridSlices();
+      if (p.type === 'manual' && state.image) slices = getManualSlices();
+      if (p.type === 'single' && state.image) slices = [{ name: `${p.fixedName}.png`, folder: p.folder, x:0, y:0, w:state.image.width, h:state.image.height }];
+
+      if (p.type === 'multi') {
+        renderBackgroundCards();
+        return;
+      }
+
+      if (!slices.length) {
+        cards.innerHTML = '<p class="subtle">No slices to preview yet.</p>';
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      slices.forEach(slice => frag.appendChild(buildCard(slice)));
+      cards.appendChild(frag);
+      hint.textContent = `${slices.length} sprites ready in ${p.folder}`;
+    }
+
+    function cropToDataUrl(slice) {
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(slice.w));
+      c.height = Math.max(1, Math.round(slice.h));
+      c.getContext('2d').drawImage(state.image, slice.x, slice.y, slice.w, slice.h, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    }
+
+    function buildCard(slice) {
+      const card = document.createElement('div'); card.className = 'card';
+      const img = document.createElement('img'); img.src = cropToDataUrl(slice);
+      const thumb = document.createElement('div'); thumb.className = 'thumb'; thumb.appendChild(img);
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = `public/assets/${slice.folder}${slice.name}`;
+      const small = document.createElement('div'); small.className = 'small'; small.textContent = `${Math.round(slice.w)}×${Math.round(slice.h)} px`;
+      const btnWrap = document.createElement('div'); btnWrap.className = 'inline';
+      const btn = document.createElement('button'); btn.className = 'btn-secondary'; btn.textContent = 'Download';
+      btn.addEventListener('click', () => downloadSingle(slice));
+      btnWrap.appendChild(btn);
+      card.append(thumb, name, small, btnWrap);
+      return card;
+    }
+
+    function renderBackgroundPanel() {
+      const wrap = el('backgroundNamesWrap');
+      const p = PRESETS[state.presetName];
+      wrap.innerHTML = '<label>Background naming</label>';
+      if (!state.backgroundMap.length) {
+        const note = document.createElement('p'); note.className = 'subtle'; note.textContent = 'Drop files, then map each to a background key.';
+        wrap.appendChild(note); return;
+      }
+      state.backgroundMap.forEach((entry, i) => {
+        const row = document.createElement('div'); row.className = 'row';
+        const n = document.createElement('div'); n.className = 'small'; n.textContent = entry.file.name;
+        const s = document.createElement('select');
+        p.options.forEach(opt => {
+          const o = document.createElement('option'); o.value = opt; o.textContent = opt; s.appendChild(o);
+        });
+        s.value = entry.name;
+        s.addEventListener('change', () => { entry.name = s.value; renderSlices(); });
+        row.append(n, s);
+        wrap.appendChild(row);
+      });
+    }
+
+    function renderBackgroundCards() {
+      cards.innerHTML = '';
+      if (!state.backgroundMap.length) {
+        cards.innerHTML = '<p class="subtle">Drop background images to preview and export.</p>';
+        return;
+      }
+      state.backgroundMap.forEach(entry => {
+        const card = document.createElement('div'); card.className = 'card';
+        const thumb = document.createElement('div'); thumb.className = 'thumb';
+        const img = new Image(); img.src = URL.createObjectURL(entry.file); thumb.appendChild(img);
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = `public/assets/backgrounds/${entry.name}.png`;
+        const small = document.createElement('div'); small.className = 'small'; small.textContent = `${entry.file.name}`;
+        const btn = document.createElement('button'); btn.className = 'btn-secondary'; btn.textContent = 'Download';
+        btn.addEventListener('click', () => downloadBlob(entry.file, `${entry.name}.png`));
+        card.append(thumb, name, small, btn);
+        cards.appendChild(card);
+      });
+      hint.textContent = `${state.backgroundMap.length} backgrounds mapped.`;
+    }
+
+    function initManualPanel() {
+      const wrap = el('manualRectWrap');
+      const p = PRESETS[state.presetName];
+      if (!Object.keys(state.manualRects).length) {
+        state.manualRects = {};
+        p.names.forEach(n => state.manualRects[n] = null);
+      }
+      wrap.innerHTML = '<label>Obstacle selections</label>';
+      const info = document.createElement('p'); info.className = 'subtle'; info.textContent = 'Select target, then drag on image to set crop rectangle.';
+      wrap.appendChild(info);
+      const list = document.createElement('div'); list.id = 'manualList';
+      wrap.appendChild(list);
+      refreshManualList();
+    }
+
+    function refreshManualList() {
+      const list = el('manualList');
+      if (!list) return;
+      const p = PRESETS[state.presetName];
+      list.innerHTML = '';
+      p.names.forEach(name => {
+        const row = document.createElement('div'); row.className = 'inline'; row.style.justifyContent = 'space-between'; row.style.marginBottom = '6px';
+        const label = document.createElement('span'); label.className = 'small';
+        const ok = !!state.manualRects[name];
+        label.textContent = `${ok ? '✓' : '○'} ${name}`;
+        const actions = document.createElement('div'); actions.className = 'inline';
+        const set = document.createElement('button'); set.className = 'btn-secondary'; set.textContent = state.manualTarget === name ? 'Drawing…' : 'Set';
+        set.addEventListener('click', () => { state.manualTarget = name; refreshManualList(); });
+        const clr = document.createElement('button'); clr.className = 'btn-danger'; clr.textContent = 'Clear';
+        clr.addEventListener('click', () => { state.manualRects[name] = null; redraw(); renderSlices(); refreshManualList(); });
+        actions.append(set, clr);
+        row.append(label, actions);
+        list.appendChild(row);
+      });
+    }
+
+    async function downloadAll() {
+      const p = PRESETS[state.presetName];
+      const zip = new JSZip();
+
+      if (p.type === 'multi') {
+        if (!state.backgroundMap.length) return alert('Load background images first.');
+        for (const entry of state.backgroundMap) zip.file(`public/assets/backgrounds/${entry.name}.png`, await entry.file.arrayBuffer());
+      } else {
+        if (!state.image) return alert('Load an image first.');
+        const slices = p.type === 'grid' ? getGridSlices() : p.type === 'manual' ? getManualSlices() : [{ name: `${p.fixedName}.png`, folder: p.folder, x:0, y:0, w:state.image.width, h:state.image.height }];
+        for (const slice of slices) {
+          const blob = dataUrlToBlob(cropToDataUrl(slice));
+          zip.file(`public/assets/${slice.folder}${slice.name}`, await blob.arrayBuffer());
+        }
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(blob, `${state.presetName.toLowerCase().replace(/[^a-z0-9]+/g,'-')}-sprites.zip`);
+    }
+
+    function downloadSingle(slice) {
+      if (!state.image) return;
+      const dataUrl = cropToDataUrl(slice);
+      const a = document.createElement('a');
+      a.href = dataUrl; a.download = slice.name;
+      a.click();
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1200);
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const [meta, b64] = dataUrl.split(',');
+      const mime = /data:(.*);base64/.exec(meta)[1];
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    window.addEventListener('resize', redraw);
+    init();
+  </script>
+</body>
+</html>
