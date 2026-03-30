@@ -5,29 +5,29 @@ const TILE_STATES = ['normal', 'happy', 'matched', 'frozen'];
 
 const tileStateAssets = BERRY_TYPES.reduce((acc, berry) => {
   acc[berry] = TILE_STATES.reduce((stateAcc, state) => {
-    stateAcc[state] = mk(`tile_${berry}_${state}`, `assets/tiles/${berry}_${state}.png`, 96, 96);
+    stateAcc[state] = mk(`tile_${berry}_${state}`, `assets/tiles/${berry}_${state}.png`, 128, 128);
     return stateAcc;
   }, {});
   return acc;
 }, {});
 
 const specialTiles = {
-  rainbow: mk('special_rainbow', 'assets/tiles/special_rainbow.png'),
-  bow: mk('special_bow', 'assets/tiles/special_bow.png'),
-  swirl: mk('special_swirl', 'assets/tiles/special_swirl.png'),
-  star: mk('special_star', 'assets/tiles/special_star.png'),
-  heart: mk('special_heart', 'assets/tiles/special_heart.png'),
-  bomb: mk('special_bomb', 'assets/tiles/special_bomb.png')
+  rainbow: mk('tile_special_rainbow', 'assets/tiles/special_rainbow.png', 128, 128),
+  bow: mk('tile_special_bow', 'assets/tiles/special_bow.png', 128, 128),
+  swirl: mk('tile_special_swirl', 'assets/tiles/special_swirl.png', 128, 128),
+  star: mk('tile_special_star', 'assets/tiles/special_star.png', 128, 128),
+  heart: mk('tile_special_heart', 'assets/tiles/special_heart.png', 128, 128),
+  bomb: mk('tile_special_bomb', 'assets/tiles/special_bomb.png', 128, 128)
 };
 
 const backgrounds = {
-  titleBg: mk('bg_title', 'assets/backgrounds/title-bg.png', 1280, 720),
-  sunberryMeadow: mk('bg_sunberry_meadow', 'assets/backgrounds/sunberry-meadow.png', 1280, 720),
-  frostberryFalls: mk('bg_frostberry_falls', 'assets/backgrounds/frostberry-falls.png', 1280, 720),
-  enchantedForest: mk('bg_enchanted_forest', 'assets/backgrounds/enchanted-forest.png', 1280, 720),
-  cosmicIsland: mk('bg_cosmic_island', 'assets/backgrounds/cosmic-island.png', 1280, 720),
-  sunberryDesert: mk('bg_sunberry_desert', 'assets/backgrounds/sunberry-desert.png', 1280, 720),
-  worldMap: mk('bg_world_map', 'assets/backgrounds/world-map.png', 1280, 720)
+  titleBg: mk('bg_title', 'assets/backgrounds/title-bg.png', 540, 960),
+  sunberryMeadow: mk('bg_sunberry_meadow', 'assets/backgrounds/sunberry-meadow.png', 540, 960),
+  frostberryFalls: mk('bg_frostberry_falls', 'assets/backgrounds/frostberry-falls.png', 540, 960),
+  enchantedForest: mk('bg_enchanted_forest', 'assets/backgrounds/enchanted-forest.png', 540, 960),
+  cosmicIsland: mk('bg_cosmic_island', 'assets/backgrounds/cosmic-island.png', 540, 960),
+  sunberryDesert: mk('bg_sunberry_desert', 'assets/backgrounds/sunberry-desert.png', 540, 960),
+  worldMap: mk('bg_world_map', 'assets/backgrounds/world-map.png', 540, 960)
 };
 
 const uiNames = [
@@ -104,8 +104,8 @@ export const ASSET_MANIFEST = {
   tiles: tileStateAssets,
   specialTiles,
   board: {
-    frame: mk('board_frame', 'assets/board/board-frame.png', 560, 560),
-    background: mk('board_background', 'assets/board/board-background.png', 520, 520)
+    frame: mk('board_frame', 'assets/board/board-frame.png', 512, 512),
+    background: mk('board_background', 'assets/board/board-background.png', 512, 512)
   },
   backgrounds,
   ui,
