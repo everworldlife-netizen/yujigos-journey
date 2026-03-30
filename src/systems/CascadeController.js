@@ -26,9 +26,11 @@ export default class CascadeController {
     return Promise.all(
       moves.map(({ fromRow, toRow, col }) => {
         const tile = this.board.tiles[toRow][col];
-        return this.scene
-          .tweenToGrid(tile, toRow, col, Math.max(120, Math.abs(toRow - fromRow) * 110))
-          .then(() => this.scene.playLandingSquash(tile));
+        return this.scene.tweenToGrid(tile, toRow, col, Math.max(140, Math.abs(toRow - fromRow) * 115), {
+          ease: 'Cubic.In',
+          landingBounce: true,
+          delay: col * 18
+        });
       })
     );
   }
@@ -39,6 +41,7 @@ export default class CascadeController {
 
     while (result.matches.length) {
       const chain = this.comboController.bump();
+      if (this.scene.setComboDepth) this.scene.setComboDepth(chain);
       this.scene.events.emit('matches-resolved', { chain, matchCount: result.matches.length, consumeMove });
       await this.scene.clearMatches(result.matches, result.specials);
       await this.applyGravity();

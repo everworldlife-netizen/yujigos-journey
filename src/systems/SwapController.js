@@ -25,19 +25,22 @@ export default class SwapController {
   async trySwap(a, b) {
     this.lock();
     this.board.swapCells(a.row, a.col, b.row, b.col);
+    const swappedA = this.board.tiles[a.row][a.col];
+    const swappedB = this.board.tiles[b.row][b.col];
 
     await Promise.all([
-      this.scene.tweenToGrid(this.board.tiles[a.row][a.col], a.row, a.col, 220, 'Sine.InOut'),
-      this.scene.tweenToGrid(this.board.tiles[b.row][b.col], b.row, b.col, 220, 'Sine.InOut')
+      this.scene.tweenToGrid(swappedA, a.row, a.col, 250, 'Cubic.InOut'),
+      this.scene.tweenToGrid(swappedB, b.row, b.col, 250, 'Cubic.InOut')
     ]);
 
     const result = MatchFinder.find(this.board.grid);
     if (!result.matches.length) {
       this.board.swapCells(a.row, a.col, b.row, b.col);
       await Promise.all([
-        this.scene.tweenToGrid(this.board.tiles[a.row][a.col], a.row, a.col, 200, 'Sine.InOut'),
-        this.scene.tweenToGrid(this.board.tiles[b.row][b.col], b.row, b.col, 200, 'Sine.InOut')
+        this.scene.tweenToGrid(swappedA, b.row, b.col, 250, 'Cubic.InOut'),
+        this.scene.tweenToGrid(swappedB, a.row, a.col, 250, 'Cubic.InOut')
       ]);
+      await this.scene.shakeTiles([swappedA, swappedB], 2, 50);
       this.unlock();
       return;
     }

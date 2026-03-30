@@ -39,7 +39,10 @@ export default class GameScene extends Phaser.Scene {
     this.cascadeController = new CascadeController(this, this.board, this.spawnController, this.comboController);
     this.swapController = new SwapController(this, this.board, this.cascadeController, this.goalController);
 
-    this.highlightSprite = this.add.image(0, 0, UI_TEXTURES.highlight).setVisible(false).setDepth(8);
+    this.selectionGlow = null;
+    this.selectionGlowTween = null;
+    this.comboParticleMultiplier = 1;
+    this.flashOverlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0xffffff, 0).setOrigin(0).setDepth(40);
     this.createParticleSystems();
     this.createTiles();
     this.bindEvents();
@@ -84,6 +87,8 @@ export default class GameScene extends Phaser.Scene {
         const tile = this.board.createTileAt(row, col, this.board.grid[row][col]).setScale(0).setAlpha(0);
         tile.setInteractive({ useHandCursor: true });
         tile.on('pointerdown', () => this.onTilePicked({ row, col }));
+        tile.setData('idlePhase', Phaser.Math.FloatBetween(0, Math.PI * 2));
+        tile.setData('idleAmplitude', Phaser.Math.FloatBetween(1.3, 2));
 
         tweens.push(
           new Promise((resolve) => {
@@ -95,7 +100,10 @@ export default class GameScene extends Phaser.Scene {
               duration: 320,
               delay: row * 35 + col * 10,
               ease: 'Back.Out',
-              onComplete: resolve
+              onComplete: () => {
+                this.resumeIdleFloat(tile);
+                resolve();
+              }
             });
           })
         );
@@ -109,35 +117,66 @@ export default class GameScene extends Phaser.Scene {
     if (this.swapController.locked) return;
     if (!this.swapController.selected) {
       this.swapController.selected = tilePos;
-      const { x, y } = this.board.gridToWorld(tilePos.row, tilePos.col);
-      this.highlightSprite.setPosition(x, y).setVisible(true);
+      this.showSelectionGlow(tilePos);
       return;
     }
 
     const selected = this.swapController.selected;
     if (selected.row === tilePos.row && selected.col === tilePos.col) {
       this.swapController.selected = null;
-      this.highlightSprite.setVisible(false);
+      this.hideSelectionGlow();
       return;
     }
 
     if (!this.swapController.areAdjacent(selected, tilePos)) {
       this.swapController.selected = tilePos;
-      const { x, y } = this.board.gridToWorld(tilePos.row, tilePos.col);
-      this.highlightSprite.setPosition(x, y);
+      this.showSelectionGlow(tilePos);
       return;
     }
 
-    this.highlightSprite.setVisible(false);
+    this.hideSelectionGlow();
     this.swapController.selected = null;
     this.swapController.trySwap(selected, tilePos);
   }
 
-  tweenToGrid(tile, row, col, duration, ease = 'Cubic.Out') {
+  tweenToGrid(tile, row, col, duration, easeOrOptions = 'Cubic.Out') {
     if (!tile) return Promise.resolve();
     const target = this.board.gridToWorld(row, col);
+    const options = typeof easeOrOptions === 'string' ? { ease: easeOrOptions } : easeOrOptions;
+    const ease = options.ease ?? 'Cubic.Out';
+    const landingBounce = options.landingBounce ?? false;
+    const delay = options.delay ?? 0;
+    const overshoot = options.overshoot ?? 4;
+    this.pauseIdleFloat(tile);
     return new Promise((resolve) => {
-      this.tweens.add({ targets: tile, x: target.x, y: target.y, duration, ease, onComplete: resolve });
+      this.tweens.add({
+        targets: tile,
+        x: target.x,
+        y: landingBounce ? target.y + overshoot : target.y,
+        delay,
+        duration,
+        ease,
+        onUpdate: () => this.syncSpecialSprite(tile),
+        onComplete: () => {
+          if (!landingBounce) {
+            this.resumeIdleFloat(tile);
+            resolve();
+            return;
+          }
+
+          this.tweens.add({
+            targets: tile,
+            y: target.y,
+            duration: 120,
+            ease: 'Back.Out',
+            onUpdate: () => this.syncSpecialSprite(tile),
+            onComplete: () => {
+              this.resumeIdleFloat(tile);
+              resolve();
+            }
+          });
+        }
+      });
     });
   }
 
@@ -147,7 +186,8 @@ export default class GameScene extends Phaser.Scene {
 
   emitMatchBurst(tile, type) {
     this.matchParticles.setTint(TILE_COLORS[type] ?? 0xffffff);
-    this.matchParticles.explode(12, tile.x, tile.y);
+    const baseCount = Phaser.Math.Between(12, 15);
+    this.matchParticles.explode(Math.round(baseCount * this.comboParticleMultiplier), tile.x, tile.y);
   }
 
   async clearMatches(matches, specials) {
@@ -171,17 +211,34 @@ export default class GameScene extends Phaser.Scene {
 
         this.emitMatchBurst(tile, this.board.grid[row][col]);
         return new Promise((resolve) => {
+          this.pauseIdleFloat(tile);
           this.tweens.add({
             targets: [tile, tile.getData('specialSprite')].filter(Boolean),
-            scaleX: 0,
-            scaleY: 0,
-            alpha: 0,
-            duration: 170,
-            ease: 'Back.In',
+            scaleX: 1.3,
+            scaleY: 1.3,
+            duration: 80,
+            ease: 'Back.Out',
             onComplete: () => {
-              if (tile.getData('specialSprite')) tile.getData('specialSprite').destroy();
-              this.board.destroyTile(row, col);
-              resolve();
+              tile.setTint(0xffffff);
+              const specialSprite = tile.getData('specialSprite');
+              if (specialSprite) specialSprite.setTint(0xffffff);
+              this.time.delayedCall(50, () => {
+                tile.clearTint();
+                if (specialSprite) specialSprite.clearTint();
+                this.tweens.add({
+                  targets: [tile, specialSprite].filter(Boolean),
+                  scaleX: 0,
+                  scaleY: 0,
+                  alpha: 0,
+                  duration: 120,
+                  ease: 'Back.In',
+                  onComplete: () => {
+                    if (tile.getData('specialSprite')) tile.getData('specialSprite').destroy();
+                    this.board.destroyTile(row, col);
+                    resolve();
+                  }
+                });
+              });
             }
           });
         });
@@ -223,17 +280,31 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  setComboDepth(depth) {
+    if (depth <= 2) this.comboParticleMultiplier = 1;
+    if (depth === 3) this.comboParticleMultiplier = 1.5;
+    if (depth === 4) this.comboParticleMultiplier = 2;
+    if (depth >= 5) this.comboParticleMultiplier = 3;
+  }
+
   showComboFeedback(chainLevel) {
-    const messages = ['Nice!', 'Great!', 'Amazing!', 'Unstoppable!'];
-    const message = messages[Math.min(chainLevel - 2, messages.length - 1)];
-    const intensity = Math.min(1 + chainLevel * 0.1, 1.6);
+    const levels = [
+      { min: 2, text: 'Nice!', size: 34, color: '#fff6bf', stroke: '#603500', particles: 1, shake: 0, flash: 0 },
+      { min: 3, text: 'Great!', size: 42, color: '#fff0c2', stroke: '#633300', particles: 1.5, shake: 2, flash: 0 },
+      { min: 4, text: 'Amazing!', size: 50, color: '#ffd86b', stroke: '#6a3900', particles: 2, shake: 3, flash: 0 },
+      { min: 5, text: 'INCREDIBLE!', size: 64, color: '#ffffff', stroke: '#6328a1', particles: 3, shake: 5, flash: 0.22 }
+    ];
+    const tier = levels.reduce((acc, entry) => (chainLevel >= entry.min ? entry : acc), levels[0]);
+    this.comboParticleMultiplier = tier.particles;
+    console.log(`combo-sfx placeholder | depth=${chainLevel} | pitch=${1 + chainLevel * 0.12}`);
+
     const text = this.add
-      .text(this.scale.width / 2, BOARD_OFFSET_Y - 18, message, {
+      .text(this.scale.width / 2, BOARD_OFFSET_Y - 18, tier.text, {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
-        fontSize: `${Math.round(30 * intensity)}px`,
+        fontSize: `${tier.size}px`,
         fontStyle: '700',
-        color: '#fff6bf',
-        stroke: '#603500',
+        color: tier.color,
+        stroke: tier.stroke,
         strokeThickness: 6
       })
       .setOrigin(0.5)
@@ -252,6 +323,30 @@ export default class GameScene extends Phaser.Scene {
       hold: 120,
       onComplete: () => text.destroy()
     });
+
+    if (tier.shake > 0) {
+      this.cameras.main.shake(100, tier.shake / 1000);
+    }
+    if (tier.flash > 0) {
+      this.tweens.add({
+        targets: this.flashOverlay,
+        alpha: tier.flash,
+        duration: 70,
+        yoyo: true,
+        ease: 'Sine.Out'
+      });
+    }
+    if (chainLevel >= 5) {
+      this.tweens.addCounter({
+        from: 0,
+        to: 360,
+        duration: 480,
+        onUpdate: (tween) => {
+          const color = Phaser.Display.Color.HSVToRGB((tween.getValue() % 360) / 360, 0.75, 1);
+          text.setColor(`#${color.color.toString(16).padStart(6, '0')}`);
+        }
+      });
+    }
   }
 
   hasValidMoves() {
@@ -304,6 +399,25 @@ export default class GameScene extends Phaser.Scene {
     const bg = this.add.graphics().setDepth(-30);
     bg.fillGradientStyle(0x1d2d62, 0x10214f, 0x0b1230, 0x182549, 1);
     bg.fillRect(0, 0, width, height);
+    const colorDrift = this.add.rectangle(width / 2, height / 2, width, height, 0x56a3ff, 0.08).setDepth(-29);
+    this.tweens.add({
+      targets: colorDrift,
+      alpha: { from: 0.05, to: 0.12 },
+      duration: 4500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut'
+    });
+    this.tweens.addCounter({
+      from: 0,
+      to: 360,
+      duration: 22000,
+      repeat: -1,
+      onUpdate: (tween) => {
+        const color = Phaser.Display.Color.HSVToRGB((tween.getValue() % 360) / 360, 0.4, 1);
+        colorDrift.setFillStyle(color.color, colorDrift.alpha);
+      }
+    });
     for (let i = 0; i < 12; i += 1) {
       const light = this.add
         .image(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), UI_TEXTURES.bokeh)
@@ -345,5 +459,112 @@ export default class GameScene extends Phaser.Scene {
     const innerGlow = this.add.graphics().setDepth(-6);
     innerGlow.fillStyle(0xffffff, 0.06);
     innerGlow.fillRoundedRect(x - 4, y - 4, boardWidth + 8, boardHeight + 8, 14);
+
+    const shimmerPath = new Phaser.Curves.Path(x - 14, y - 14)
+      .lineTo(x + boardWidth + 14, y - 14)
+      .lineTo(x + boardWidth + 14, y + boardHeight + 14)
+      .lineTo(x - 14, y + boardHeight + 14)
+      .lineTo(x - 14, y - 14);
+    const shimmer = this.add.rectangle(x - 14, y - 14, 40, 3, 0xfff6cc, 0.8).setOrigin(0.5).setDepth(-5);
+    shimmer.setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 5000,
+      repeat: -1,
+      onUpdate: (tween) => {
+        const p = shimmerPath.getPoint(tween.getValue());
+        shimmer.setPosition(p.x, p.y);
+      }
+    });
+  }
+
+  showSelectionGlow(tilePos) {
+    const { x, y } = this.board.gridToWorld(tilePos.row, tilePos.col);
+    if (!this.selectionGlow) {
+      this.selectionGlow = this.add.circle(x, y, TILE_SIZE * 0.58, 0xb9f7ff, 0.55).setDepth(4);
+      this.selectionGlow.setBlendMode(Phaser.BlendModes.ADD);
+    } else {
+      this.selectionGlow.setPosition(x, y).setVisible(true);
+    }
+    this.selectionGlowTween?.stop();
+    this.selectionGlow.setAlpha(0.3).setScale(1);
+    this.selectionGlowTween = this.tweens.add({
+      targets: this.selectionGlow,
+      alpha: { from: 0.3, to: 0.7 },
+      scale: { from: 0.96, to: 1.07 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut'
+    });
+  }
+
+  hideSelectionGlow() {
+    if (!this.selectionGlow) return;
+    this.selectionGlowTween?.stop();
+    this.selectionGlow.setVisible(false);
+  }
+
+  async shakeTiles(tiles, intensity = 2, duration = 150) {
+    await Promise.all(
+      tiles
+        .filter(Boolean)
+        .map(
+          (tile) =>
+            new Promise((resolve) => {
+              const startX = tile.x;
+              this.tweens.add({
+                targets: tile,
+                x: startX + intensity,
+                duration,
+                ease: 'Sine.InOut',
+                yoyo: true,
+                repeat: 2,
+                onUpdate: () => this.syncSpecialSprite(tile),
+                onComplete: () => {
+                  tile.x = startX;
+                  this.syncSpecialSprite(tile);
+                  resolve();
+                }
+              });
+            })
+        )
+    );
+  }
+
+  pauseIdleFloat(tile) {
+    const tween = tile?.getData('idleTween');
+    if (tween) {
+      tween.stop();
+      tile.setData('idleTween', null);
+    }
+  }
+
+  resumeIdleFloat(tile) {
+    if (!tile || !tile.active) return;
+    this.pauseIdleFloat(tile);
+    const { y } = this.board.gridToWorld(tile.getData('row'), tile.getData('col'));
+    tile.y = y;
+    tile.setData('baseY', y);
+    const phase = tile.getData('idlePhase') ?? 0;
+    const amplitude = tile.getData('idleAmplitude') ?? 1.8;
+    const idleTween = this.tweens.addCounter({
+      from: 0,
+      to: Math.PI * 2,
+      duration: 2200,
+      repeat: -1,
+      ease: 'Sine.InOut',
+      onUpdate: (tween) => {
+        tile.y = y + Math.sin(tween.getValue() + phase) * amplitude;
+        this.syncSpecialSprite(tile);
+      }
+    });
+    tile.setData('idleTween', idleTween);
+  }
+
+  syncSpecialSprite(tile) {
+    const specialSprite = tile?.getData('specialSprite');
+    if (specialSprite) specialSprite.setPosition(tile.x, tile.y);
   }
 }
