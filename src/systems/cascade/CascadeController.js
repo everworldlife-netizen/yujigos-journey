@@ -12,9 +12,9 @@ export default class CascadeController {
 
   applyGravity() {
     const moves = [];
-    for (let col = 0; col < GAME_CONFIG.BOARD_COLS; col += 1) {
-      let write = GAME_CONFIG.BOARD_ROWS - 1;
-      for (let row = GAME_CONFIG.BOARD_ROWS - 1; row >= 0; row -= 1) {
+    for (let col = 0; col < this.board.cols; col += 1) {
+      let write = this.board.rows - 1;
+      for (let row = this.board.rows - 1; row >= 0; row -= 1) {
         if (this.board.grid[row][col] === -1) continue;
         if (write !== row) {
           this.board.moveTile(row, col, write, col);

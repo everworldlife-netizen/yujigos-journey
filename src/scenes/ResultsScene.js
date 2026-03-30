@@ -33,9 +33,9 @@ export default class ResultsScene extends Phaser.Scene {
     panel.add(restart);
     restart.on('pointerdown', () => this.slideOutToGame(level));
 
-    const next = this.makeButton(width / 2, height * 0.66, 'Next Level', scaleFactor);
-    panel.add(next);
-    next.on('pointerdown', () => this.slideOutToGame(level + 1));
+    const quit = this.makeButton(width / 2, height * 0.66, 'Quit', scaleFactor);
+    panel.add(quit);
+    quit.on('pointerdown', () => this.slideOutToMenu());
 
     this.tweens.add({ targets: panel, x: 0, duration: 360, ease: 'Cubic.Out' });
   }
@@ -60,6 +60,14 @@ export default class ResultsScene extends Phaser.Scene {
     this.time.delayedCall(220, () => {
       this.scene.stop('ResultsScene');
       this.scene.start('GameScene', { level });
+    });
+  }
+
+  slideOutToMenu() {
+    this.cameras.main.fadeOut(220, 0, 0, 0);
+    this.time.delayedCall(220, () => {
+      this.scene.stop('ResultsScene');
+      this.scene.start('MainMenuScene');
     });
   }
 }

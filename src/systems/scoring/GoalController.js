@@ -7,7 +7,7 @@ export default class GoalController {
     const levelConfig = getLevelConfig(level);
     this.level = levelConfig.level;
     this.score = 0;
-    this.moves = levelConfig.moveLimit;
+    this.moves = levelConfig.maxMoves;
     this.targetScore = levelConfig.targetScore;
 
     EventBus.on('match:clear', this.onMatchClear, this);

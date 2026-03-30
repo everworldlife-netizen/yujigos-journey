@@ -27,7 +27,7 @@ export default class GameScene extends Phaser.Scene {
     this.createAmbience();
     this.createBoardFrame();
 
-    this.board = new Board(this);
+    this.board = new Board(this, this.level);
     this.board.createInitialGrid();
 
     this.effectsManager = new EffectsManager(this);
