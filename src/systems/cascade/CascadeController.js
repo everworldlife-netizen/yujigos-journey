@@ -45,7 +45,8 @@ export default class CascadeController {
 
   clearSingle(row, col, preserve, specials, index) {
     const key = `${row},${col}`;
-    const tile = this.board.tiles[row][col]?.sprite;
+    const tileModel = this.board.tiles[row][col];
+    const tile = tileModel?.sprite;
     if (!tile) return Promise.resolve();
 
     if (preserve.has(key)) {
@@ -58,6 +59,7 @@ export default class CascadeController {
       return Promise.resolve();
     }
 
+    tileModel?.setState('matched');
     EventBus.emit('fx:matchBurst', { x: tile.x, y: tile.y, type: this.board.grid[row][col] });
     return new Promise((resolve) => {
       this.scene.time.delayedCall(index * GAME_CONFIG.MATCH_POP_DELAY_STEP, () => {

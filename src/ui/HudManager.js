@@ -10,26 +10,27 @@ export default class HudManager {
 
     this.panelContainers = { score: scene.add.container(0, 0), level: scene.add.container(0, 0), moves: scene.add.container(0, 0) };
     this.panels = {
-      score: this.makePanel(this.panelContainers.score, 'SCORE', '0'),
-      level: this.makePanel(this.panelContainers.level, 'LEVEL', '1'),
-      moves: this.makePanel(this.panelContainers.moves, 'MOVES', '20')
+      score: this.makePanel(this.panelContainers.score, 'SCORE', '0', 'display-score'),
+      level: this.makePanel(this.panelContainers.level, 'LEVEL', '1', 'display-level'),
+      moves: this.makePanel(this.panelContainers.moves, 'MOVES', '20', 'display-moves')
     };
 
     const pauseSize = 46;
     this.pauseBtn = scene.add.container(0, 0).setDepth(50).setSize(pauseSize, pauseSize).setInteractive();
-    const pauseBg = scene.add.circle(0, 0, pauseSize / 2, 0x0f1730, 0.72).setStrokeStyle(2, 0x8bc2ff, 0.42);
-    const pauseIconKey = getUiTextureKey('pauseIcon');
-    const pauseIcon = scene.textures.exists(pauseIconKey) ? scene.add.image(0, 0, pauseIconKey).setDisplaySize(22, 18) : scene.add.rectangle(0, 0, 22, 18, 0xffffff, 0.95);
-    this.pauseBtn.add([pauseBg, pauseIcon]);
+    const pauseKey = getUiTextureKey('btn-pause');
+    const pauseBg = scene.textures.exists(pauseKey)
+      ? scene.add.image(0, 0, pauseKey).setDisplaySize(54, 54)
+      : scene.add.circle(0, 0, pauseSize / 2, 0x0f1730, 0.72).setStrokeStyle(2, 0x8bc2ff, 0.42);
+    this.pauseBtn.add([pauseBg]);
     this.pauseBtn.on('pointerdown', () => EventBus.emit('game:pause'));
 
     EventBus.on('score:update', this.onScoreUpdate, this);
     EventBus.on('moves:update', this.onMovesUpdate, this);
   }
 
-  makePanel(parent, label, value) {
+  makePanel(parent, label, value, textureName) {
     const panel = this.scene.add.container(0, 0).setDepth(50);
-    const panelKey = getUiTextureKey('panel');
+    const panelKey = getUiTextureKey(textureName);
     if (this.scene.textures.exists(panelKey)) panel.add(this.scene.add.image(0, 0, panelKey).setOrigin(0));
     else panel.add(this.scene.add.rectangle(86, 36, 172, 72, 0x0f1730, 0.64).setStrokeStyle(2, 0x8bc2ff, 0.4));
     const labelText = this.scene.add.text(16, 10, label, {

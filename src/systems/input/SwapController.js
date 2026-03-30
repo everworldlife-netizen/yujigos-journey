@@ -14,14 +14,25 @@ export default class SwapController {
 
     EventBus.on('input:tileDown', this.onTileDown, this);
     EventBus.on('input:tileUp', this.onTileUp, this);
+    EventBus.on('input:tileHover', this.onTileHover, this);
     EventBus.on('input:lock', this.lock, this);
     EventBus.on('input:unlock', this.unlock, this);
   }
 
   unlock() { this.locked = false; }
-  lock() { this.locked = true; }
+  lock() { this.locked = true; this.clearSelected(); }
 
   areAdjacent(a, b) { return Math.abs(a.row - b.row) + Math.abs(a.col - b.col) === 1; }
+
+  setTileState(row, col, state) {
+    this.board.tiles[row]?.[col]?.setState(state);
+  }
+
+  clearSelected() {
+    if (!this.selected) return;
+    this.setTileState(this.selected.row, this.selected.col, 'normal');
+    this.selected = null;
+  }
 
   async trySwap(a, b) {
     if (!this.areAdjacent(a, b) || this.locked) return false;
@@ -60,28 +71,40 @@ export default class SwapController {
     return true;
   }
 
-  onTileDown({ row, col, sprite, pointer }) {
+  onTileDown({ row, col, sprite }) {
     if (this.locked) return;
     this.dragTile = sprite;
     this.dragStart = { x: sprite.x, y: sprite.y };
-    sprite.setData('interactiveScale', 1.08);
     this.scene.tweens.add({ targets: sprite, scaleX: 1.08, scaleY: 1.08, duration: 60, ease: 'Sine.Out' });
 
     if (!this.selected) {
       this.selected = { row, col };
+      this.setTileState(row, col, 'happy');
       return;
     }
 
     const selected = this.selected;
     if (selected.row === row && selected.col === col) {
-      this.selected = null;
+      this.clearSelected();
       return;
     }
 
     if (this.areAdjacent(selected, { row, col })) {
-      this.selected = null;
+      this.clearSelected();
       this.trySwap(selected, { row, col });
+      return;
     }
+
+    this.clearSelected();
+    this.selected = { row, col };
+    this.setTileState(row, col, 'happy');
+  }
+
+  onTileHover({ row, col, hovering }) {
+    if (this.locked) return;
+    const isSelected = this.selected && this.selected.row === row && this.selected.col === col;
+    if (isSelected) return;
+    this.setTileState(row, col, hovering ? 'happy' : 'normal');
   }
 
   onTileUp({ row, col, pointer, sprite }) {
@@ -101,12 +124,14 @@ export default class SwapController {
 
     const target = absX >= absY ? { row, col: col + (dx > 0 ? 1 : -1) } : { row: row + (dy > 0 ? 1 : -1), col };
     if (target.row < 0 || target.row >= GAME_CONFIG.BOARD_ROWS || target.col < 0 || target.col >= GAME_CONFIG.BOARD_COLS) return;
+    this.clearSelected();
     this.trySwap({ row, col }, target);
   }
 
   destroy() {
     EventBus.off('input:tileDown', this.onTileDown, this);
     EventBus.off('input:tileUp', this.onTileUp, this);
+    EventBus.off('input:tileHover', this.onTileHover, this);
     EventBus.off('input:lock', this.lock, this);
     EventBus.off('input:unlock', this.unlock, this);
   }

@@ -1,47 +1,72 @@
 import { ASSET_MANIFEST } from './AssetManifest.js';
 
-export const TILE_TYPES = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+export const TILE_TYPES = [
+  'strawberry',
+  'blueberry',
+  'raspberry',
+  'pink_raspberry',
+  'blackberry',
+  'golden_berry',
+  'moon_berry',
+  'ice_berry'
+];
 
-export const TILE_TEXTURE_MAP = {
-  red: 'tile_red',
-  blue: 'tile_blue',
-  green: 'tile_green',
-  yellow: 'tile_yellow',
-  purple: 'tile_purple',
-  orange: 'tile_orange'
-};
+export const TILE_STATES = ['normal', 'happy', 'matched', 'frozen'];
 
-export function getTileTextureKey(type) {
-  return TILE_TEXTURE_MAP[type];
+export function getTileTextureKey(type, state = 'normal') {
+  return ASSET_MANIFEST.tiles[type]?.[state]?.key ?? ASSET_MANIFEST.tiles[type]?.normal?.key;
 }
 
 export function getSpecialTextureKey(special) {
-  return ASSET_MANIFEST.specials[special].key;
+  const specialMap = {
+    striped: 'bow',
+    bomb: 'bomb',
+    rainbow: 'rainbow',
+    swirl: 'swirl',
+    star: 'star',
+    heart: 'heart'
+  };
+  const manifestKey = specialMap[special] ?? special;
+  return ASSET_MANIFEST.specialTiles[manifestKey]?.key;
 }
 
 export function getBoardTextureKey(element) {
-  return ASSET_MANIFEST.board[element].key;
+  return ASSET_MANIFEST.board[element]?.key;
 }
 
 export function getBackgroundTextureKey(name) {
-  return ASSET_MANIFEST.backgrounds[name].key;
+  return ASSET_MANIFEST.backgrounds[name]?.key;
 }
 
 export function getUiTextureKey(name) {
-  return ASSET_MANIFEST.ui[name].key;
+  return ASSET_MANIFEST.ui[name]?.key;
+}
+
+export function getCharacterTextureKey(character, pose = 'idle') {
+  if (character === 'yujigo') return ASSET_MANIFEST.characters.yujigo[pose]?.key;
+  if (character === 'mochi') return ASSET_MANIFEST.characters.mochi[pose]?.key;
+  return undefined;
 }
 
 export function getFxTextureKey(name) {
-  return ASSET_MANIFEST.fx[name].key;
+  const fxMap = {
+    sparkle: 'sparkle-star',
+    matchBurst: 'sparkle-burst',
+    specialGlow: 'sparkle-glow'
+  };
+  const manifestKey = fxMap[name] ?? name;
+  return ASSET_MANIFEST.effects[manifestKey]?.key;
 }
 
 export const TILE_PARTICLE_TINTS = {
-  red: 0xff4444,
-  blue: 0x4488ff,
-  green: 0x44dd44,
-  yellow: 0xffdd44,
-  purple: 0xbb44ff,
-  orange: 0xff8844
+  strawberry: 0xff4e6d,
+  blueberry: 0x5a86ff,
+  raspberry: 0xff5890,
+  pink_raspberry: 0xff8bc4,
+  blackberry: 0x6f52b8,
+  golden_berry: 0xffd25a,
+  moon_berry: 0x9fd0ff,
+  ice_berry: 0xd7ecff
 };
 
 export const PARTICLE_CONFIG = {
