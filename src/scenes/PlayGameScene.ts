@@ -6,6 +6,7 @@ import { ProceduralAudio } from '../audio/ProceduralAudio';
 interface GemSprite {
   cell: GemCell;
   sprite: Phaser.GameObjects.Image;
+  gemTypeLabel: Phaser.GameObjects.Text;
   overlay?: Phaser.GameObjects.Image;
 }
 
@@ -25,6 +26,8 @@ export class PlayGameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private movesText!: Phaser.GameObjects.Text;
   private starsText!: Phaser.GameObjects.Text;
+  private hintText!: Phaser.GameObjects.Text;
+  private hintedCells: { a: GemCell; b: GemCell } | null = null;
 
   constructor() { super('PlayGame'); }
 
@@ -35,6 +38,7 @@ export class PlayGameScene extends Phaser.Scene {
   create(): void {
     this.createBackground();
     this.model = new Match3(this.level);
+    this.ensurePlayableBoard();
     this.moves = this.level.moves;
     this.createUI();
     this.renderBoard();
@@ -66,6 +70,11 @@ export class PlayGameScene extends Phaser.Scene {
     this.scoreText = this.add.text(38, 72, 'Score: 0', { fontSize: '24px', color: '#b1fffe' });
     this.movesText = this.add.text(300, 72, `Moves: ${this.moves}`, { fontSize: '24px', color: '#ffe09c' });
     this.starsText = this.add.text(530, 72, '☆☆☆', { fontSize: '32px', color: '#ffe887' });
+    this.hintText = this.add.text(620, 72, 'Hint', { fontSize: '24px', color: '#ffffff', backgroundColor: '#3b2d5a', padding: { x: 10, y: 6 } }).setInteractive({ useHandCursor: true });
+    this.hintText.on('pointerdown', () => {
+      if (this.resolving) return;
+      this.showHint();
+    });
     const back = this.add.text(700, 34, '← Levels', { fontSize: '20px', color: '#fff' }).setInteractive();
     back.on('pointerdown', () => this.scene.start('LevelSelect'));
   }
@@ -94,7 +103,13 @@ export class PlayGameScene extends Phaser.Scene {
     const p = this.pos(cell.row, cell.col);
     const sprite = this.add.image(p.x, p.y, this.textureForCell(cell)).setDisplaySize(62, 62).setInteractive({ useHandCursor: true });
     sprite.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handleGemPointerDown(pointer, cell));
-    const entry: GemSprite = { cell, sprite };
+    const gemTypeLabel = this.add.text(p.x - 28, p.y - 29, `${cell.gemType}`, {
+      fontSize: '10px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+    });
+    const entry: GemSprite = { cell, sprite, gemTypeLabel };
     this.gems.set(this.keyFor(cell), entry);
     this.decorateObstacle(entry);
   }
@@ -121,6 +136,7 @@ export class PlayGameScene extends Phaser.Scene {
 
   private handleSelect(cell: GemCell): void {
     if (this.resolving) return;
+    this.clearHintHighlight();
     if (!this.selected) {
       this.setSelected(cell);
       return;
@@ -178,6 +194,7 @@ export class PlayGameScene extends Phaser.Scene {
 
   private async trySwap(a: GemCell, b: GemCell): Promise<void> {
     this.resolving = true;
+    this.clearHintHighlight();
     const from = { row: a.row, col: a.col };
     const to = { row: b.row, col: b.col };
     console.log('swap attempted', { from, to });
@@ -205,6 +222,7 @@ export class PlayGameScene extends Phaser.Scene {
     }
 
     if (this.moves <= 0 || this.score >= this.level.targetScore) this.endLevel();
+    this.ensurePlayableBoard();
     this.resolving = false;
   }
 
@@ -216,6 +234,8 @@ export class PlayGameScene extends Phaser.Scene {
     const bp = this.pos(a.row, a.col);
     return new Promise((resolve) => {
       this.tweens.add({ targets: aa.sprite, x: ap.x, y: ap.y, duration, ease: 'Cubic.easeInOut' });
+      this.tweens.add({ targets: aa.gemTypeLabel, x: ap.x - 28, y: ap.y - 29, duration, ease: 'Cubic.easeInOut' });
+      this.tweens.add({ targets: bb.gemTypeLabel, x: bp.x - 28, y: bp.y - 29, duration, ease: 'Cubic.easeInOut' });
       this.tweens.add({
         targets: bb.sprite,
         x: bp.x,
@@ -247,6 +267,7 @@ export class PlayGameScene extends Phaser.Scene {
         this.time.delayedCall(440, () => emitter.destroy());
         this.tweens.add({ targets: [entry.sprite, entry.overlay], scale: 0.2, alpha: 0, duration: 120, onComplete: () => {
           entry.sprite.destroy();
+          entry.gemTypeLabel.destroy();
           entry.overlay?.destroy();
         } });
         this.gems.delete(this.keyFor(cell));
@@ -259,6 +280,7 @@ export class PlayGameScene extends Phaser.Scene {
         if (!entry) continue;
         const p = this.pos(d.toRow, d.col);
         this.tweens.add({ targets: [entry.sprite, entry.overlay], x: p.x, y: p.y, duration: Math.max(130, (d.toRow - d.fromRow) * 150), ease: 'Quad.easeIn' });
+        this.tweens.add({ targets: entry.gemTypeLabel, x: p.x - 28, y: p.y - 29, duration: Math.max(130, (d.toRow - d.fromRow) * 150), ease: 'Quad.easeIn' });
         this.gems.delete(key);
         this.gems.set(this.keyFor(d.cell), entry);
       }
@@ -273,6 +295,8 @@ export class PlayGameScene extends Phaser.Scene {
             const p = this.pos(r, c);
             entry.sprite.y = this.boardY - 90;
             this.tweens.add({ targets: entry.sprite, y: p.y, duration: (r + 1) * 80, ease: 'Quad.easeIn' });
+            entry.gemTypeLabel.y = this.boardY - 119;
+            this.tweens.add({ targets: entry.gemTypeLabel, y: p.y - 29, duration: (r + 1) * 80, ease: 'Quad.easeIn' });
             if (entry.overlay) {
               entry.overlay.y = this.boardY - 90;
               this.tweens.add({ targets: entry.overlay, y: p.y, duration: (r + 1) * 80, ease: 'Quad.easeIn' });
@@ -296,9 +320,83 @@ export class PlayGameScene extends Phaser.Scene {
         if (!entry) continue;
         const texture = this.textureForCell(cell);
         if (entry.sprite.texture.key !== texture) entry.sprite.setTexture(texture);
+        entry.gemTypeLabel.setText(`${cell.gemType}`);
         this.decorateObstacle(entry);
       }
     }
+  }
+
+  private showHint(): void {
+    this.clearHintHighlight();
+    const validMoves = this.model.findValidMoves();
+    console.log(`[match3] hint check valid moves: ${validMoves.length}`);
+    if (validMoves.length === 0) {
+      this.model.shuffleBoardUntilPlayable();
+      this.syncGemTextures();
+      this.repositionAllSprites();
+      return;
+    }
+    const hint = validMoves[0];
+    const first = this.model.grid[hint.a.row][hint.a.col];
+    const second = this.model.grid[hint.b.row][hint.b.col];
+    this.hintedCells = { a: first, b: second };
+    this.pulseHintCell(first);
+    this.pulseHintCell(second);
+  }
+
+  private pulseHintCell(cell: GemCell): void {
+    const entry = this.gems.get(this.keyFor(cell));
+    if (!entry) return;
+    this.tweens.add({
+      targets: entry.sprite,
+      duration: 420,
+      scale: 1.15,
+      yoyo: true,
+      repeat: 5,
+      ease: 'Sine.easeInOut',
+    });
+    this.tweens.add({
+      targets: entry.sprite,
+      duration: 420,
+      alpha: 0.72,
+      yoyo: true,
+      repeat: 5,
+      ease: 'Sine.easeInOut',
+    });
+    entry.sprite.setTint(0xb8fffd);
+  }
+
+  private clearHintHighlight(): void {
+    if (!this.hintedCells) return;
+    const entries = [this.hintedCells.a, this.hintedCells.b]
+      .map((cell) => this.gems.get(this.keyFor(cell)))
+      .filter(Boolean) as GemSprite[];
+    for (const entry of entries) {
+      this.tweens.killTweensOf(entry.sprite);
+      entry.sprite.setScale(1).setAlpha(1).clearTint();
+    }
+    this.hintedCells = null;
+  }
+
+  private repositionAllSprites(): void {
+    for (let r = 0; r < this.model.rows; r += 1) {
+      for (let c = 0; c < this.model.cols; c += 1) {
+        const cell = this.model.grid[r][c];
+        const entry = this.gems.get(this.keyFor(cell));
+        if (!entry) continue;
+        const p = this.pos(r, c);
+        entry.sprite.setPosition(p.x, p.y);
+        entry.gemTypeLabel.setPosition(p.x - 28, p.y - 29);
+        entry.overlay?.setPosition(p.x, p.y);
+      }
+    }
+  }
+
+  private ensurePlayableBoard(): void {
+    const validMoves = this.model.findValidMoves();
+    console.log(`[match3] valid moves available: ${validMoves.length}`);
+    if (validMoves.length > 0) return;
+    this.model.shuffleBoardUntilPlayable();
   }
 
   private updateScoreUI(chain: number, scoreGain: number): void {
