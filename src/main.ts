@@ -1,17 +1,15 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from './config/gameConfig';
-import { BootScene } from './scenes/BootScene';
-import { GameScene } from './scenes/GameScene';
-import { TitleScene } from './scenes/TitleScene';
-import { UIScene } from './scenes/UIScene';
-import { WorldMapScene } from './scenes/WorldMapScene';
+import { BootstrapScene } from './scenes/BootstrapScene';
+import { PreloadScene } from './scenes/PreloadScene';
+import { LevelSelectScene } from './scenes/LevelSelectScene';
+import { PlayGameScene } from './scenes/PlayGameScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
   parent: 'app',
-  backgroundColor: '#120d24',
+  width: 800,
+  height: 720,
+  backgroundColor: '#11091a',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -19,5 +17,5 @@ new Phaser.Game({
   input: {
     activePointers: 3,
   },
-  scene: [BootScene, TitleScene, WorldMapScene, GameScene, UIScene],
+  scene: [BootstrapScene, PreloadScene, LevelSelectScene, PlayGameScene],
 });
