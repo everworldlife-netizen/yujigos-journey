@@ -8,8 +8,6 @@ const GEM_COLORS = [
   { name: 'yellow', color: '#ffd84a' },
   { name: 'purple', color: '#a45bff' },
   { name: 'orange', color: '#ff9a3d' },
-  { name: 'cyan', color: '#37d9ff' },
-  { name: 'pink', color: '#ff65c5' },
 ] as const;
 
 export class PreloadScene extends Phaser.Scene {
@@ -111,7 +109,7 @@ export class PreloadScene extends Phaser.Scene {
       ctx.fill();
       ctx.fillRect(center + 6, center - 10, 4, 6);
     } else {
-      const colors = ['#ff4d5a', '#ff9a3d', '#ffd84a', '#35d16f', '#37d9ff', '#3f7cff', '#ff65c5'];
+      const colors = ['#ff4d5a', '#3f7cff', '#35d16f', '#ffd84a', '#a45bff', '#ff9a3d'];
       ctx.lineWidth = 4;
       const segment = (Math.PI * 2) / colors.length;
       colors.forEach((ringColor, i) => {
