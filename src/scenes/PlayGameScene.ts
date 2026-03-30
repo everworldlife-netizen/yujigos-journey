@@ -18,6 +18,7 @@ export class PlayGameScene extends Phaser.Scene {
   private boardY = 140;
   private gems = new Map<string, GemSprite>();
   private selected: GemCell | null = null;
+  private dragStart: GemCell | null = null;
   private resolving = false;
   private score = 0;
   private moves = 0;
@@ -37,6 +38,10 @@ export class PlayGameScene extends Phaser.Scene {
     this.moves = this.level.moves;
     this.createUI();
     this.renderBoard();
+    this.input.on('pointerup', this.handlePointerUp, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointerup', this.handlePointerUp, this);
+    });
     this.audioFx.start();
   }
 
@@ -87,12 +92,11 @@ export class PlayGameScene extends Phaser.Scene {
 
   private createGemSprite(cell: GemCell): void {
     const p = this.pos(cell.row, cell.col);
-    const sprite = this.add.image(p.x, p.y, this.textureForCell(cell)).setDisplaySize(62, 62).setInteractive();
-    sprite.on('pointerdown', () => this.handleSelect(cell));
+    const sprite = this.add.image(p.x, p.y, this.textureForCell(cell)).setDisplaySize(62, 62).setInteractive({ useHandCursor: true });
+    sprite.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handleGemPointerDown(pointer, cell));
     const entry: GemSprite = { cell, sprite };
     this.gems.set(this.keyFor(cell), entry);
     this.decorateObstacle(entry);
-    this.tweens.add({ targets: sprite, scale: 1.04, yoyo: true, repeat: -1, duration: 1200 + Phaser.Math.Between(0, 500) });
   }
 
   private decorateObstacle(entry: GemSprite): void {
@@ -106,39 +110,80 @@ export class PlayGameScene extends Phaser.Scene {
     entry.overlay = overlay;
   }
 
+  private handleGemPointerDown(pointer: Phaser.Input.Pointer, spriteCell: GemCell): void {
+    if (this.resolving) return;
+    const pointerCell = this.cellFromWorld(pointer.worldX, pointer.worldY);
+    const cell = pointerCell ?? spriteCell;
+    console.log('gem clicked', { row: cell.row, col: cell.col, worldX: pointer.worldX, worldY: pointer.worldY });
+    this.dragStart = cell;
+    this.handleSelect(cell);
+  }
+
   private handleSelect(cell: GemCell): void {
     if (this.resolving) return;
     if (!this.selected) {
-      this.selected = cell;
-      this.flashCell(cell, 0xffffaa);
+      this.setSelected(cell);
       return;
     }
     if (cell === this.selected) {
-      this.selected = null;
+      this.setSelected(null);
       return;
     }
     if (!this.model.areAdjacent(this.selected, cell) || !this.model.canMove(this.selected) || !this.model.canMove(cell)) {
       this.audioFx.invalid();
-      this.selected = null;
+      this.setSelected(cell);
       return;
     }
-    this.trySwap(this.selected, cell);
-    this.selected = null;
+    const from = this.selected;
+    this.setSelected(null);
+    void this.trySwap(from, cell);
   }
 
-  private flashCell(cell: GemCell, tint: number): void {
-    const item = this.gems.get(this.keyFor(cell));
-    if (!item) return;
-    item.sprite.setTint(tint);
-    this.time.delayedCall(120, () => item.sprite.clearTint());
+  private setSelected(cell: GemCell | null): void {
+    if (this.selected) {
+      const prev = this.gems.get(this.keyFor(this.selected));
+      prev?.sprite.setScale(1).clearTint();
+    }
+    this.selected = cell;
+    if (cell) {
+      const entry = this.gems.get(this.keyFor(cell));
+      entry?.sprite.setScale(1.12).setTint(0xffffaa);
+    }
+  }
+
+  private cellFromWorld(worldX: number, worldY: number): GemCell | null {
+    const col = Math.floor((worldX - this.boardX) / this.tileSize);
+    const row = Math.floor((worldY - this.boardY) / this.tileSize);
+    if (row < 0 || col < 0 || row >= this.model.rows || col >= this.model.cols) return null;
+    return this.model.grid[row][col];
+  }
+
+  private handlePointerUp(pointer: Phaser.Input.Pointer): void {
+    if (this.resolving || !this.dragStart) return;
+    const start = this.dragStart;
+    this.dragStart = null;
+    const end = this.cellFromWorld(pointer.worldX, pointer.worldY);
+    if (!end || end === start || !this.model.areAdjacent(start, end)) return;
+    if (!this.model.canMove(start) || !this.model.canMove(end)) {
+      this.audioFx.invalid();
+      return;
+    }
+    console.log('drag swap attempt', {
+      from: { row: start.row, col: start.col },
+      to: { row: end.row, col: end.col },
+    });
+    this.setSelected(null);
+    void this.trySwap(start, end);
   }
 
   private async trySwap(a: GemCell, b: GemCell): Promise<void> {
     this.resolving = true;
+    console.log('swap attempted', { from: { row: a.row, col: a.col }, to: { row: b.row, col: b.col } });
     this.audioFx.swap();
     await this.animateSwap(a, b, 200);
     this.model.swap(a, b);
     const matches = this.model.findMatches();
+    console.log('matches found', matches.map((m) => m.cells.map((c) => ({ row: c.row, col: c.col }))));
     if (matches.length === 0) {
       this.audioFx.invalid();
       await this.animateSwap(this.model.grid[a.row][a.col], this.model.grid[b.row][b.col], 170);
