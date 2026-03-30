@@ -11,8 +11,8 @@ export default class Tile {
   }
 
   static createSprite(scene, type, x, y, tileSize) {
-    const baseKey = getTileTextureKey(type, 'normal');
-    const textureKey = scene.textures.exists(baseKey) ? baseKey : '__MISSING';
+    const baseKey = getTileTextureKey(type, 'normal') ?? `tile_${type}_normal`;
+    const textureKey = scene.textures.exists(baseKey) ? baseKey : (scene.textures.exists(`tile_${type}_normal`) ? `tile_${type}_normal` : '__MISSING');
     const sprite = scene.add.image(x, y, textureKey).setDepth(5).setDisplaySize(tileSize, tileSize);
     sprite.setData('type', type);
     sprite.setData('state', 'normal');
@@ -22,7 +22,7 @@ export default class Tile {
 
   setState(state = 'normal') {
     const nextState = this.sprite.getData('frozen') ? 'frozen' : (TILE_STATES.includes(state) ? state : 'normal');
-    const key = getTileTextureKey(this.type, nextState);
+    const key = getTileTextureKey(this.type, nextState) ?? `tile_${this.type}_${nextState}`;
     if (key && this.scene.textures.exists(key)) this.sprite.setTexture(key);
     this.sprite.setData('state', nextState);
   }

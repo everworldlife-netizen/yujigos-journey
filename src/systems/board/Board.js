@@ -42,6 +42,7 @@ export default class Board {
     const { tileSize } = this.getLayout();
     const { x, y } = initialWorld ?? this.gridToWorld(row, col);
     const sprite = Tile.createSprite(this.scene, type, x, y, tileSize);
+    sprite.setData('texturePrefix', `tile_${type}`);
     sprite.setData('row', row);
     sprite.setData('col', col);
     const hitSize = Math.max(44, tileSize);
