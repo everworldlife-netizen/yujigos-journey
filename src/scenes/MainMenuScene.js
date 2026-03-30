@@ -11,7 +11,7 @@ export default class MainMenuScene extends Phaser.Scene {
     this.createAmbience();
 
     this.add
-      .text(this.scale.width / 2, this.scale.height * 0.22, 'Yuji\'s Journey', {
+      .text(this.scale.width / 2, this.scale.height * 0.22, "Yujigo's Journey", {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
         fontSize: `${Math.floor(52 * scaleFactor)}px`,
         fontStyle: '700',

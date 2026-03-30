@@ -11,6 +11,15 @@ export default class EffectsManager {
     this.flashOverlay = scene.add.rectangle(0, 0, scene.scale.width, scene.scale.height, 0xffffff, 0).setOrigin(0).setDepth(40);
     this.vignette = scene.add.rectangle(scene.scale.width / 2, scene.scale.height / 2, scene.scale.width, scene.scale.height, 0x1a0010, 0).setDepth(39).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.matchParticles = scene.add.particles(0, 0, getFxTextureKey('matchBurst'), { ...PARTICLE_CONFIG.matchBurst, maxParticles: GAME_CONFIG.MAX_PARTICLES }).setDepth(16);
+    this.sparkleParticles = scene.add.particles(0, 0, getFxTextureKey('sparkle'), {
+      lifespan: 520,
+      speed: { min: 15, max: 70 },
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.95, end: 0 },
+      quantity: 8,
+      emitting: false,
+      blendMode: Phaser.BlendModes.ADD
+    }).setDepth(17);
 
     this.comboTextPool = new ObjectPool(
       () => scene.add.text(scene.scale.width / 2, scene.layout.boardY - 18, '', { fontFamily: 'Trebuchet MS, Arial, sans-serif', fontSize: '36px', fontStyle: '700', color: '#fff6bf', stroke: '#603500', strokeThickness: 6 }).setOrigin(0.5).setDepth(25),
@@ -26,9 +35,12 @@ export default class EffectsManager {
   }
 
   onMatchBurst({ x, y, type }) {
-    this.matchParticles.setTint(TILE_PARTICLE_TINTS[type] ?? 0xffffff);
+    const tint = TILE_PARTICLE_TINTS[type] ?? 0xffffff;
+    this.matchParticles.setTint(tint);
+    this.sparkleParticles.setTint(tint);
     const baseCount = this.scene.scale.width < 768 ? Phaser.Math.Between(8, 12) : Phaser.Math.Between(10, 14);
     this.matchParticles.explode(Math.min(Math.round(baseCount * this.comboParticleMultiplier), GAME_CONFIG.MAX_PARTICLES), x, y);
+    this.sparkleParticles.explode(Phaser.Math.Between(6, 10), x, y);
   }
 
   onSpecialGlow({ x, y }) {
@@ -75,6 +87,10 @@ export default class EffectsManager {
   }
 
   destroy() {
+    this.matchParticles?.destroy();
+    this.sparkleParticles?.destroy();
+    this.flashOverlay?.destroy();
+    this.vignette?.destroy();
     EventBus.off('fx:matchBurst', this.onMatchBurst, this);
     EventBus.off('fx:specialGlow', this.onSpecialGlow, this);
     EventBus.off('fx:comboText', this.onComboText, this);
