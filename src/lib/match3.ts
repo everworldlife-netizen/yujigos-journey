@@ -34,10 +34,11 @@ export class Match3 {
   chain = 0;
 
   constructor(private level: LevelConfig, seed = Date.now()) {
-    this.gemTypes = Math.min(6, level.gemTypes);
+    this.gemTypes = Math.min(5, level.gemTypes);
     Phaser.Math.RND.sow([`${seed}`]);
     this.grid = this.createBoard();
     this.ensureNoInitialMatches();
+    console.log(`[match3] valid moves on board creation: ${this.findValidMoves().length}`);
     this.logBoard('initial board');
   }
 
@@ -207,6 +208,63 @@ export class Match3 {
       from: { ...from, gemType: fromCell.gemType },
       to: { ...to, gemType: toCell.gemType },
       matches: matches.map((m) => m.cells.map((c) => ({ row: c.row, col: c.col, gemType: c.gemType }))),
+    });
+  }
+
+  findValidMoves(): Array<{ a: { row: number; col: number }; b: { row: number; col: number } }> {
+    const validMoves: Array<{ a: { row: number; col: number }; b: { row: number; col: number } }> = [];
+    const directions = [
+      { row: 0, col: 1 },
+      { row: 1, col: 0 },
+    ];
+
+    for (let row = 0; row < this.rows; row += 1) {
+      for (let col = 0; col < this.cols; col += 1) {
+        const first = this.grid[row][col];
+        if (!this.canMove(first)) continue;
+        for (const direction of directions) {
+          const target = this.getCell(row + direction.row, col + direction.col);
+          if (!target || !this.canMove(target)) continue;
+
+          const targetRow = target.row;
+          const targetCol = target.col;
+          this.swapByPosition(row, col, targetRow, targetCol);
+          const matches = this.findMatches();
+          this.swapByPosition(row, col, targetRow, targetCol);
+
+          if (matches.length > 0) {
+            validMoves.push({
+              a: { row, col },
+              b: { row: targetRow, col: targetCol },
+            });
+          }
+        }
+      }
+    }
+
+    return validMoves;
+  }
+
+  shuffleBoardUntilPlayable(maxAttempts = 250): number {
+    let attempts = 0;
+    let validMoves = this.findValidMoves();
+    while (validMoves.length === 0 && attempts < maxAttempts) {
+      this.shuffleMovableCells();
+      this.ensureNoInitialMatches();
+      validMoves = this.findValidMoves();
+      attempts += 1;
+    }
+    console.log(`[match3] board shuffled ${attempts} time(s), valid moves: ${validMoves.length}`);
+    return validMoves.length;
+  }
+
+  private shuffleMovableCells(): void {
+    const movable = this.grid.flat().filter((cell) => this.canMove(cell));
+    const payload = movable.map((cell) => ({ gemType: cell.gemType, special: cell.special }));
+    Phaser.Utils.Array.Shuffle(payload);
+    movable.forEach((cell, idx) => {
+      cell.gemType = payload[idx].gemType;
+      cell.special = payload[idx].special;
     });
   }
 
