@@ -12,7 +12,8 @@ export default class Tile {
 
   static createSprite(scene, type, x, y, tileSize) {
     const baseKey = getTileTextureKey(type, 'normal');
-    const sprite = scene.add.image(x, y, baseKey).setDepth(5).setDisplaySize(tileSize, tileSize);
+    const textureKey = scene.textures.exists(baseKey) ? baseKey : '__MISSING';
+    const sprite = scene.add.image(x, y, textureKey).setDepth(5).setDisplaySize(tileSize, tileSize);
     sprite.setData('type', type);
     sprite.setData('state', 'normal');
     sprite.setData('frozen', false);

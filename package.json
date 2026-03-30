@@ -5,7 +5,8 @@
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
     "prebuild": "node scripts/slice-sprites.js",
-    "slice": "node scripts/slice-sprites.js"
+    "slice": "node scripts/slice-sprites.js",
+    "generate-sheets": "node scripts/generate-placeholder-sheets.js && node scripts/slice-sprites.js"
   },
   "dependencies": {
     "phaser": "^3.60.0"
