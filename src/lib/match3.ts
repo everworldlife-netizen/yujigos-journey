@@ -35,31 +35,22 @@ export class Match3 {
 
   constructor(private level: LevelConfig, seed = Date.now()) {
     this.gemTypes = Math.min(5, level.gemTypes);
-    Phaser.Math.RND.sow([`${seed}`]);
     this.grid = this.createBoard();
-    console.log('[match3] raw board before ensureNoInitialMatches');
-    this.logBoard('raw board');
-    console.log(`[match3] raw board match count before ensureNoInitialMatches: ${this.findMatches().length}`);
-
     this.ensureNoInitialMatches();
 
     let regenerationAttempts = 0;
     let validMoves = this.findValidMoves();
-    while (validMoves.length === 0 && regenerationAttempts < 100) {
+    while (validMoves.length === 0 && regenerationAttempts < 50) {
       regenerationAttempts += 1;
-      console.log(`[match3] no valid moves after ensureNoInitialMatches, regenerating board (attempt ${regenerationAttempts})`);
       this.grid = this.createBoard();
       this.ensureNoInitialMatches();
       validMoves = this.findValidMoves();
     }
-
-    console.log(`[match3] board regeneration attempts needed: ${regenerationAttempts}`);
     console.log(`[match3] valid moves on board creation: ${validMoves.length}`);
-    this.logBoard('initial board');
   }
 
   private randomType(): number {
-    return Phaser.Math.Between(0, this.gemTypes - 1);
+    return Math.floor(Math.random() * this.gemTypes);
   }
 
   private randomObstacle(): { obstacle: ObstacleType; hp: number } {
@@ -149,51 +140,60 @@ export class Match3 {
   }
 
   findMatches(): MatchGroup[] {
-    console.log('[match3] findMatches() scanning grid:', this.grid.map((row) => row.map((cell) => cell.gemType)));
-    const groups: GemCell[][] = [];
+    const types = this.grid.map((row) => row.map((cell) => cell.gemType));
+    const matched = new Set<string>();
 
-    for (let r = 0; r < this.rows; r += 1) {
-      let count = 1;
-      for (let c = 1; c <= this.cols; c += 1) {
-        const prev = this.grid[r][c - 1];
-        const cur = c < this.cols ? this.grid[r][c] : null;
-        if (cur && cur.gemType === prev.gemType) count += 1;
-        else {
-          if (count >= 3) {
-            const run: GemCell[] = [];
-            for (let i = c - count; i < c; i += 1) run.push(this.grid[r][i]);
-            console.log(`[match3] horizontal run found row=${r} startCol=${c - count} len=${count} gemType=${run[0].gemType}`);
-            groups.push(run);
-          }
-          count = 1;
+    for (let row = 0; row < this.rows; row += 1) {
+      let start = 0;
+      while (start < this.cols) {
+        const type = types[row][start];
+        let end = start + 1;
+        while (end < this.cols && types[row][end] === type) end += 1;
+        if (end - start >= 3) {
+          for (let col = start; col < end; col += 1) matched.add(`${row},${col}`);
         }
+        start = end;
       }
     }
 
-    for (let c = 0; c < this.cols; c += 1) {
-      let count = 1;
-      for (let r = 1; r <= this.rows; r += 1) {
-        const prev = this.grid[r - 1][c];
-        const cur = r < this.rows ? this.grid[r][c] : null;
-        if (cur && cur.gemType === prev.gemType) count += 1;
-        else {
-          if (count >= 3) {
-            const run: GemCell[] = [];
-            for (let i = r - count; i < r; i += 1) run.push(this.grid[i][c]);
-            console.log(`[match3] vertical run found col=${c} startRow=${r - count} len=${count} gemType=${run[0].gemType}`);
-            groups.push(run);
-          }
-          count = 1;
+    for (let col = 0; col < this.cols; col += 1) {
+      let start = 0;
+      while (start < this.rows) {
+        const type = types[start][col];
+        let end = start + 1;
+        while (end < this.rows && types[end][col] === type) end += 1;
+        if (end - start >= 3) {
+          for (let row = start; row < end; row += 1) matched.add(`${row},${col}`);
         }
+        start = end;
       }
     }
 
-    if (groups.length === 0) return [];
+    if (matched.size === 0) return [];
+
     const merged: GemCell[][] = [];
-    for (const g of groups) {
-      const overlap = merged.find((m) => g.some((cell) => m.includes(cell)));
-      if (overlap) for (const cell of g) if (!overlap.includes(cell)) overlap.push(cell);
-      else merged.push([...g]);
+    const seen = new Set<string>();
+    for (const key of matched) {
+      if (seen.has(key)) continue;
+      const queue = [key];
+      const component: GemCell[] = [];
+
+      while (queue.length > 0) {
+        const current = queue.pop()!;
+        if (seen.has(current)) continue;
+        seen.add(current);
+        const [row, col] = current.split(',').map(Number);
+        component.push(this.grid[row][col]);
+        const neighbors = [
+          `${row - 1},${col}`,
+          `${row + 1},${col}`,
+          `${row},${col - 1}`,
+          `${row},${col + 1}`,
+        ];
+        for (const neighbor of neighbors) if (matched.has(neighbor) && !seen.has(neighbor)) queue.push(neighbor);
+      }
+
+      merged.push(component);
     }
 
     const results = merged.map((cells) => {
@@ -216,44 +216,26 @@ export class Match3 {
     return results;
   }
 
-  logSwapDebug(
-    from: { row: number; col: number },
-    to: { row: number; col: number },
-    matches: MatchGroup[],
-  ): void {
-    const fromCell = this.grid[from.row][from.col];
-    const toCell = this.grid[to.row][to.col];
-    console.log('[match3] swap check', {
-      from: { ...from, gemType: fromCell.gemType },
-      to: { ...to, gemType: toCell.gemType },
-      matches: matches.map((m) => m.cells.map((c) => ({ row: c.row, col: c.col, gemType: c.gemType }))),
-    });
-  }
-
   findValidMoves(): Array<{ a: { row: number; col: number }; b: { row: number; col: number } }> {
     const validMoves: Array<{ a: { row: number; col: number }; b: { row: number; col: number } }> = [];
-    const directions = [
-      { row: 0, col: 1 },
-      { row: 1, col: 0 },
-    ];
+    const types = this.grid.map((row) => row.map((cell) => cell.gemType));
+    const directions = [[0, 1], [1, 0]] as const;
 
     for (let row = 0; row < this.rows; row += 1) {
       for (let col = 0; col < this.cols; col += 1) {
         const first = this.grid[row][col];
         if (!this.canMove(first)) continue;
-        for (const direction of directions) {
-          const target = this.getCell(row + direction.row, col + direction.col);
+        for (const [dRow, dCol] of directions) {
+          const target = this.getCell(row + dRow, col + dCol);
           if (!target || !this.canMove(target)) continue;
 
           const targetRow = target.row;
           const targetCol = target.col;
-          console.log(`[match3] trying swap (${row},${col})<->(${targetRow},${targetCol})`);
-          this.swapByPosition(row, col, targetRow, targetCol);
-          const matches = this.findMatches();
-          this.swapByPosition(row, col, targetRow, targetCol);
-          console.log(`[match3] swap (${row},${col})<->(${targetRow},${targetCol}) matchCount=${matches.length}`);
+          [types[row][col], types[targetRow][targetCol]] = [types[targetRow][targetCol], types[row][col]];
+          const hasMatch = this.hasAnyMatch(types);
+          [types[row][col], types[targetRow][targetCol]] = [types[targetRow][targetCol], types[row][col]];
 
-          if (matches.length > 0) {
+          if (hasMatch) {
             validMoves.push({
               a: { row, col },
               b: { row: targetRow, col: targetCol },
@@ -264,6 +246,24 @@ export class Match3 {
     }
 
     return validMoves;
+  }
+
+  private hasAnyMatch(types: number[][]): boolean {
+    for (let row = 0; row < this.rows; row += 1) {
+      for (let col = 0; col <= this.cols - 3; col += 1) {
+        const value = types[row][col];
+        if (types[row][col + 1] === value && types[row][col + 2] === value) return true;
+      }
+    }
+
+    for (let col = 0; col < this.cols; col += 1) {
+      for (let row = 0; row <= this.rows - 3; row += 1) {
+        const value = types[row][col];
+        if (types[row + 1][col] === value && types[row + 2][col] === value) return true;
+      }
+    }
+
+    return false;
   }
 
   shuffleBoardUntilPlayable(maxAttempts = 250): number {
@@ -383,68 +383,3 @@ export class Match3 {
     return steps;
   }
 }
-
-function runFindMatchesSelfTest(): void {
-  const testLevel: LevelConfig = {
-    id: 999,
-    name: 'findMatches self-test',
-    targetScore: 0,
-    moves: 1,
-    gemTypes: 5,
-    obstacleDensity: 0,
-    obstaclePool: ['none'],
-    stars: [0, 0, 0],
-  };
-
-  const match3 = new Match3(testLevel, 1);
-  const expectedTopLeft = [
-    [0, 0, 0],
-    [1, 2, 3],
-    [4, 1, 2],
-  ];
-  const filler = [
-    [1, 2, 3, 4, 1],
-    [2, 3, 4, 1, 2],
-    [3, 4, 1, 2, 3],
-    [4, 1, 2, 3, 4],
-    [1, 2, 3, 4, 1],
-    [2, 3, 4, 1, 2],
-    [3, 4, 1, 2, 3],
-    [4, 1, 2, 3, 4],
-  ];
-
-  const testGrid: GemCell[][] = [];
-  for (let row = 0; row < match3.rows; row += 1) {
-    testGrid[row] = [];
-    for (let col = 0; col < match3.cols; col += 1) {
-      const gemType =
-        row < 3 && col < 3
-          ? expectedTopLeft[row][col]
-          : filler[row][Math.max(0, col - 3)];
-      testGrid[row][col] = {
-        row,
-        col,
-        gemType,
-        special: 'none',
-        obstacle: 'none',
-        obstacleHP: 0,
-      };
-    }
-  }
-
-  match3.grid = testGrid;
-  const matches = match3.findMatches();
-  const horizontalMatches = matches.filter((m) => m.orientation === 'h' && m.cells.length === 3 && m.cells.every((c) => c.row === 0));
-  const pass = matches.length === 1 && horizontalMatches.length === 1;
-  console.log('[match3] findMatches self-test result', {
-    pass,
-    totalMatches: matches.length,
-    matches: matches.map((m) => ({
-      orientation: m.orientation,
-      cells: m.cells.map((c) => ({ row: c.row, col: c.col, gemType: c.gemType })),
-    })),
-  });
-  console.assert(pass, '[match3] findMatches self-test failed: expected exactly one horizontal row-0 match of 3');
-}
-
-runFindMatchesSelfTest();

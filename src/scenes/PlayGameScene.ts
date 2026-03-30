@@ -184,10 +184,6 @@ export class PlayGameScene extends Phaser.Scene {
       this.audioFx.invalid();
       return;
     }
-    console.log('drag swap attempt', {
-      from: { row: start.row, col: start.col },
-      to: { row: end.row, col: end.col },
-    });
     this.setSelected(null);
     void this.trySwap(start, end);
   }
@@ -197,12 +193,10 @@ export class PlayGameScene extends Phaser.Scene {
     this.clearHintHighlight();
     const from = { row: a.row, col: a.col };
     const to = { row: b.row, col: b.col };
-    console.log('swap attempted', { from, to });
     this.audioFx.swap();
     await this.animateSwap(a, b, 200);
     this.model.swapByPosition(from.row, from.col, to.row, to.col);
     const matches = this.model.findMatches();
-    this.model.logSwapDebug(from, to, matches);
     if (matches.length === 0) {
       this.audioFx.invalid();
       await this.animateSwap(this.model.grid[from.row][from.col], this.model.grid[to.row][to.col], 170);
