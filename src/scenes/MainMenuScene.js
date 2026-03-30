@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { UI_TEXTURES } from '../config/AssetConfig.js';
+import { getBackgroundTextureKey, getFxTextureKey, getUiTextureKey } from '../config/AssetConfig.js';
 
 export default class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -20,7 +20,11 @@ export default class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const button = this.add.image(this.scale.width / 2, 300, UI_TEXTURES.button).setInteractive({ useHandCursor: true });
+    const buttonKey = getUiTextureKey('button');
+    const button = this.textures.exists(buttonKey)
+      ? this.add.image(this.scale.width / 2, 300, buttonKey)
+      : this.add.rectangle(this.scale.width / 2, 300, 220, 66, 0x24324f, 0.95).setStrokeStyle(2, 0xffffff, 0.4);
+    button.setInteractive({ useHandCursor: true });
     const text = this.add
       .text(button.x, button.y, 'Play', {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
@@ -41,11 +45,16 @@ export default class MainMenuScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    this.add.image(width / 2, height / 2, UI_TEXTURES.mainMenuBackground).setDisplaySize(width, height);
+    const menuBgKey = getBackgroundTextureKey('mainMenu');
+    if (this.textures.exists(menuBgKey)) {
+      this.add.image(width / 2, height / 2, menuBgKey).setDisplaySize(width, height);
+    } else {
+      this.add.rectangle(width / 2, height / 2, width, height, 0x1a2d5a, 1);
+    }
 
     for (let i = 0; i < 12; i += 1) {
       const light = this.add
-        .image(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), UI_TEXTURES.bokeh)
+        .image(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), getFxTextureKey('sparkle'))
         .setTint(Phaser.Display.Color.GetColor(200 + Phaser.Math.Between(0, 40), 180, 255))
         .setAlpha(Phaser.Math.FloatBetween(0.08, 0.2))
         .setScale(Phaser.Math.FloatBetween(1.2, 3));

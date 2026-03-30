@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ASSET_ENTRIES } from '../config/AssetManifest.js';
+import { ASSET_ENTRIES, ASSET_MANIFEST } from '../config/AssetManifest.js';
 
 const TILE_FILL = {
   red: 0xff5d5d,
@@ -28,7 +28,9 @@ export default class PreloadScene extends Phaser.Scene {
       console.warn(`[assets] Failed to load '${file.key}' from '${file.src}'. Using placeholder texture.`);
     });
 
-    ASSET_ENTRIES.forEach(({ key, path }) => this.load.image(key, path));
+    Object.values(ASSET_MANIFEST).forEach((group) => {
+      Object.values(group).forEach(({ key, path }) => this.load.image(key, path));
+    });
   }
 
   create() {
@@ -44,30 +46,39 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   generatePlaceholder(entry) {
-    const { key } = entry;
+    const { key, group, name } = entry;
 
-    if (key.startsWith('tile-')) {
-      const name = key.replace('tile-', '');
+    if (group === 'tiles') {
       this.generateTilePlaceholder(key, name, TILE_FILL[name] ?? 0x888888);
       return;
     }
 
-    if (key === 'special-striped') return this.generateSpecialPlaceholder(key, 'striped');
-    if (key === 'special-bomb') return this.generateSpecialPlaceholder(key, 'bomb');
-    if (key === 'special-rainbow') return this.generateSpecialPlaceholder(key, 'rainbow');
-    if (key === 'ui-panel') return this.generateLabeledPanel(key, 160, 66, 0x2d4b8f, 'UI PANEL');
-    if (key === 'ui-button') return this.generateLabeledPanel(key, 220, 66, 0x24324f, 'BUTTON');
-    if (key === 'ui-pause-icon') return this.generatePauseIcon(key);
-    if (key === 'ui-highlight') return this.generateHighlight(key);
-    if (key === 'ui-star-filled') return this.generateStar(key, true);
-    if (key === 'ui-star-empty') return this.generateStar(key, false);
-    if (key === 'board-frame') return this.generateBoardFrame(key);
-    if (key === 'board-background') return this.generateBoardBackground(key);
-    if (key === 'bg-main-menu') return this.generateBackground(key, 0x223b82, 0x101b45, 'MENU BG');
-    if (key === 'bg-game') return this.generateBackground(key, 0x1d2d62, 0x0a1235, 'GAME BG');
-    if (key === 'effect-bokeh') return this.generateBokeh(key);
-    if (key === 'effect-sparkle') return this.generateSparkle(key);
-    if (key === 'effect-special-glow') return this.generateSpecialGlow(key);
+    if (group === 'specials') {
+      this.generateSpecialPlaceholder(key, name);
+      return;
+    }
+
+    if (group === 'ui') {
+      if (name === 'panel') return this.generateLabeledPanel(key, 160, 66, 0x2d4b8f, 'UI PANEL');
+      if (name === 'button') return this.generateLabeledPanel(key, 220, 66, 0x24324f, 'BUTTON');
+      if (name === 'pauseIcon') return this.generatePauseIcon(key);
+      if (name === 'star') return this.generateStar(key, true);
+    }
+
+    if (group === 'board') {
+      if (name === 'frame') return this.generateBoardFrame(key);
+      if (name === 'background') return this.generateBoardBackground(key);
+    }
+
+    if (group === 'backgrounds') {
+      if (name === 'mainMenu') return this.generateBackground(key, 0x223b82, 0x101b45, 'MENU BG');
+      if (name === 'game') return this.generateBackground(key, 0x1d2d62, 0x0a1235, 'GAME BG');
+    }
+
+    if (group === 'fx') {
+      if (name === 'sparkle' || name === 'matchBurst') return this.generateSparkle(key);
+      if (name === 'specialGlow') return this.generateSpecialGlow(key);
+    }
 
     this.generateMissingAssetFallback(key, entry.width ?? 96, entry.height ?? 96);
   }

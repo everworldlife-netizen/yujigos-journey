@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { UI_TEXTURES } from '../config/AssetConfig.js';
+import { getUiTextureKey } from '../config/AssetConfig.js';
 
 export default class ResultsScene extends Phaser.Scene {
   constructor() {
@@ -20,8 +20,9 @@ export default class ResultsScene extends Phaser.Scene {
     this.add.text(width / 2, 220, `Score: ${score}`, { fontSize: '32px', color: '#ffdd44' }).setOrigin(0.5);
     const starRow = this.add.container(width / 2, 280);
     for (let i = 0; i < 3; i += 1) {
-      const key = i < stars ? UI_TEXTURES.starFilled : UI_TEXTURES.starEmpty;
-      starRow.add(this.add.image((i - 1) * 42, 0, key).setDisplaySize(36, 36));
+      const star = this.add.image((i - 1) * 42, 0, getUiTextureKey('star')).setDisplaySize(36, 36);
+      if (i >= stars) star.setAlpha(0.2);
+      starRow.add(star);
     }
 
     const restart = this.makeButton(width / 2, 360, 'Restart');

@@ -1,34 +1,47 @@
 import { ASSET_MANIFEST } from './AssetManifest.js';
 
-export const TILE_TEXTURES = {
-  red: ASSET_MANIFEST.tiles.red.key,
-  blue: ASSET_MANIFEST.tiles.blue.key,
-  green: ASSET_MANIFEST.tiles.green.key,
-  yellow: ASSET_MANIFEST.tiles.yellow.key,
-  purple: ASSET_MANIFEST.tiles.purple.key,
-  orange: ASSET_MANIFEST.tiles.orange.key
+export const TILE_TYPES = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+
+export const TILE_TEXTURE_MAP = {
+  red: 'tile_red',
+  blue: 'tile_blue',
+  green: 'tile_green',
+  yellow: 'tile_yellow',
+  purple: 'tile_purple',
+  orange: 'tile_orange'
 };
 
-export const SPECIAL_TEXTURES = {
-  striped: ASSET_MANIFEST.specials.striped.key,
-  bomb: ASSET_MANIFEST.specials.bomb.key,
-  rainbow: ASSET_MANIFEST.specials.rainbow.key
-};
+export function getTileTextureKey(type) {
+  return TILE_TEXTURE_MAP[type];
+}
 
-export const UI_TEXTURES = {
-  panel: ASSET_MANIFEST.ui.panel.key,
-  button: ASSET_MANIFEST.ui.button.key,
-  pauseIcon: ASSET_MANIFEST.ui.pauseIcon.key,
-  highlight: ASSET_MANIFEST.ui.highlight.key,
-  starFilled: ASSET_MANIFEST.ui.starFilled.key,
-  starEmpty: ASSET_MANIFEST.ui.starEmpty.key,
-  bokeh: ASSET_MANIFEST.effects.bokeh.key,
-  sparkle: ASSET_MANIFEST.effects.sparkle.key,
-  boardFrame: ASSET_MANIFEST.board.frame.key,
-  boardBackground: ASSET_MANIFEST.board.background.key,
-  specialGlow: ASSET_MANIFEST.effects.specialGlow.key,
-  mainMenuBackground: ASSET_MANIFEST.backgrounds.mainMenu.key,
-  gameBackground: ASSET_MANIFEST.backgrounds.game.key
+export function getSpecialTextureKey(special) {
+  return ASSET_MANIFEST.specials[special].key;
+}
+
+export function getBoardTextureKey(element) {
+  return ASSET_MANIFEST.board[element].key;
+}
+
+export function getBackgroundTextureKey(name) {
+  return ASSET_MANIFEST.backgrounds[name].key;
+}
+
+export function getUiTextureKey(name) {
+  return ASSET_MANIFEST.ui[name].key;
+}
+
+export function getFxTextureKey(name) {
+  return ASSET_MANIFEST.fx[name].key;
+}
+
+export const TILE_PARTICLE_TINTS = {
+  red: 0xff4444,
+  blue: 0x4488ff,
+  green: 0x44dd44,
+  yellow: 0xffdd44,
+  purple: 0xbb44ff,
+  orange: 0xff8844
 };
 
 export const PARTICLE_CONFIG = {
@@ -47,12 +60,3 @@ export const PARTICLE_CONFIG = {
     duration: 260
   }
 };
-
-export const TILE_KEYS = [
-  TILE_TEXTURES.red,
-  TILE_TEXTURES.blue,
-  TILE_TEXTURES.green,
-  TILE_TEXTURES.yellow,
-  TILE_TEXTURES.purple,
-  TILE_TEXTURES.orange
-];
