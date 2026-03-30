@@ -42,9 +42,7 @@ export default class MainMenuScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x1d2d62, 0x10214f, 0x0b1230, 0x182549, 1);
-    bg.fillRect(0, 0, width, height);
+    this.add.image(width / 2, height / 2, UI_TEXTURES.mainMenuBackground).setDisplaySize(width, height);
 
     for (let i = 0; i < 12; i += 1) {
       const light = this.add

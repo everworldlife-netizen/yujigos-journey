@@ -396,9 +396,7 @@ export default class GameScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    const bg = this.add.graphics().setDepth(-30);
-    bg.fillGradientStyle(0x1d2d62, 0x10214f, 0x0b1230, 0x182549, 1);
-    bg.fillRect(0, 0, width, height);
+    this.add.image(width / 2, height / 2, UI_TEXTURES.gameBackground).setDisplaySize(width, height).setDepth(-30);
     const colorDrift = this.add.rectangle(width / 2, height / 2, width, height, 0x56a3ff, 0.08).setDepth(-29);
     this.tweens.add({
       targets: colorDrift,
@@ -444,21 +442,14 @@ export default class GameScene extends Phaser.Scene {
     const x = BOARD_OFFSET_X;
     const y = BOARD_OFFSET_Y;
 
-    const shadow = this.add.graphics().setDepth(-10);
-    shadow.fillStyle(0x000000, 0.35);
-    shadow.fillRoundedRect(x - 18, y - 14, boardWidth + 36, boardHeight + 36, 26);
-
-    const frame = this.add.graphics().setDepth(-8);
-    frame.fillStyle(0x332211, 0.8);
-    frame.fillRoundedRect(x - 14, y - 14, boardWidth + 28, boardHeight + 28, 24);
-    frame.lineStyle(4, 0xe8c572, 0.95);
-    frame.strokeRoundedRect(x - 14, y - 14, boardWidth + 28, boardHeight + 28, 24);
-    frame.lineStyle(2, 0xffe7a7, 0.55);
-    frame.strokeRoundedRect(x - 10, y - 10, boardWidth + 20, boardHeight + 20, 20);
-
-    const innerGlow = this.add.graphics().setDepth(-6);
-    innerGlow.fillStyle(0xffffff, 0.06);
-    innerGlow.fillRoundedRect(x - 4, y - 4, boardWidth + 8, boardHeight + 8, 14);
+    this.add
+      .image(x + boardWidth / 2, y + boardHeight / 2, UI_TEXTURES.boardFrame)
+      .setDisplaySize(boardWidth + 40, boardHeight + 40)
+      .setDepth(-8);
+    this.add
+      .image(x + boardWidth / 2, y + boardHeight / 2, UI_TEXTURES.boardBackground)
+      .setDisplaySize(boardWidth, boardHeight)
+      .setDepth(-7);
 
     const shimmerPath = new Phaser.Curves.Path(x - 14, y - 14)
       .lineTo(x + boardWidth + 14, y - 14)

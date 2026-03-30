@@ -1,10 +1,19 @@
 import Phaser from 'phaser';
+import { ASSET_ENTRIES } from '../config/AssetManifest.js';
 
-const COLORS = [0xff4444, 0x4488ff, 0x44dd44, 0xffdd44, 0xbb44ff, 0xff8844];
+const TILE_FILL = {
+  red: 0xff5d5d,
+  blue: 0x4f8fff,
+  green: 0x52db67,
+  yellow: 0xffdf57,
+  purple: 0xc06bff,
+  orange: 0xffa24f
+};
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() {
     super('PreloadScene');
+    this.failedAssetKeys = new Set();
   }
 
   preload() {
@@ -14,94 +23,299 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.on('progress', (value) => bar.setScale(value, 1));
     this.load.on('complete', () => barBg.destroy());
 
-    this.loadAssets();
-  }
-
-  loadAssets() {
-    COLORS.forEach((color, index) => {
-      const g = this.add.graphics();
-      g.fillStyle(color, 1);
-      g.fillCircle(28, 28, 26);
-      g.fillStyle(0xffffff, 0.35);
-      g.fillCircle(20, 20, 12);
-      g.lineStyle(2, 0xffffff, 0.35);
-      g.strokeCircle(28, 28, 26);
-      g.generateTexture(`tile-${index}`, 56, 56);
-      g.destroy();
+    this.load.on('loaderror', (file) => {
+      this.failedAssetKeys.add(file.key);
+      console.warn(`[assets] Failed to load '${file.key}' from '${file.src}'. Using placeholder texture.`);
     });
 
-    const light = this.add.graphics();
-    light.fillStyle(0xffffff, 1);
-    light.fillCircle(20, 20, 20);
-    light.generateTexture('bokeh', 40, 40);
-    light.destroy();
-
-    const sparkle = this.add.graphics();
-    sparkle.fillStyle(0xffffff, 1);
-    sparkle.fillCircle(5, 5, 5);
-    sparkle.generateTexture('sparkle', 10, 10);
-    sparkle.destroy();
-
-    const highlight = this.add.graphics();
-    highlight.lineStyle(4, 0xffffff, 1);
-    highlight.strokeCircle(28, 28, 30);
-    highlight.generateTexture('highlight', 64, 64);
-    highlight.destroy();
-
-    const glow = this.add.graphics();
-    glow.fillStyle(0xffffff, 0.9);
-    glow.fillCircle(40, 40, 34);
-    glow.lineStyle(3, 0xffffff, 0.6);
-    glow.strokeCircle(40, 40, 36);
-    glow.generateTexture('special-glow', 80, 80);
-    glow.destroy();
-
-    const panel = this.add.graphics();
-    panel.fillStyle(0x233a77, 1);
-    panel.fillRoundedRect(0, 0, 160, 66, 14);
-    panel.lineStyle(2, 0x8fb0ff, 0.45);
-    panel.strokeRoundedRect(0, 0, 160, 66, 14);
-    panel.generateTexture('ui-panel', 160, 66);
-    panel.destroy();
-
-    const button = this.add.graphics();
-    button.fillStyle(0x1f2937, 1);
-    button.fillRoundedRect(0, 0, 220, 66, 18);
-    button.lineStyle(3, 0xffdd44, 0.9);
-    button.strokeRoundedRect(0, 0, 220, 66, 18);
-    button.generateTexture('ui-button', 220, 66);
-    button.destroy();
-
-    const pauseIcon = this.add.graphics();
-    pauseIcon.fillStyle(0xffffff, 1);
-    pauseIcon.fillRect(4, 2, 6, 16);
-    pauseIcon.fillRect(14, 2, 6, 16);
-    pauseIcon.generateTexture('ui-pause-icon', 24, 20);
-    pauseIcon.destroy();
-
-    const specialStriped = this.add.graphics();
-    specialStriped.lineStyle(5, 0xfff1a8, 1);
-    specialStriped.strokeLineShape(new Phaser.Geom.Line(8, 8, 48, 48));
-    specialStriped.strokeLineShape(new Phaser.Geom.Line(8, 48, 48, 8));
-    specialStriped.generateTexture('special-striped', 56, 56);
-    specialStriped.destroy();
-
-    const specialBomb = this.add.graphics();
-    specialBomb.fillStyle(0xffc1d9, 0.9);
-    specialBomb.fillCircle(28, 28, 10);
-    specialBomb.generateTexture('special-bomb', 56, 56);
-    specialBomb.destroy();
-
-    const specialRainbow = this.add.graphics();
-    [0xff4444, 0xffdd44, 0x44dd44, 0x4488ff, 0xbb44ff].forEach((c, i) => {
-      specialRainbow.fillStyle(c, 0.95);
-      specialRainbow.fillCircle(28, 28, 24 - i * 4);
-    });
-    specialRainbow.generateTexture('special-rainbow', 56, 56);
-    specialRainbow.destroy();
+    ASSET_ENTRIES.forEach(({ key, path }) => this.load.image(key, path));
   }
 
   create() {
+    this.ensureFallbackAssets();
     this.scene.start('MainMenuScene');
+  }
+
+  ensureFallbackAssets() {
+    ASSET_ENTRIES.forEach((entry) => {
+      if (this.textures.exists(entry.key) && !this.failedAssetKeys.has(entry.key)) return;
+      this.generatePlaceholder(entry);
+    });
+  }
+
+  generatePlaceholder(entry) {
+    const { key } = entry;
+
+    if (key.startsWith('tile-')) {
+      const name = key.replace('tile-', '');
+      this.generateTilePlaceholder(key, name, TILE_FILL[name] ?? 0x888888);
+      return;
+    }
+
+    if (key === 'special-striped') return this.generateSpecialPlaceholder(key, 'striped');
+    if (key === 'special-bomb') return this.generateSpecialPlaceholder(key, 'bomb');
+    if (key === 'special-rainbow') return this.generateSpecialPlaceholder(key, 'rainbow');
+    if (key === 'ui-panel') return this.generateLabeledPanel(key, 160, 66, 0x2d4b8f, 'UI PANEL');
+    if (key === 'ui-button') return this.generateLabeledPanel(key, 220, 66, 0x24324f, 'BUTTON');
+    if (key === 'ui-pause-icon') return this.generatePauseIcon(key);
+    if (key === 'ui-highlight') return this.generateHighlight(key);
+    if (key === 'ui-star-filled') return this.generateStar(key, true);
+    if (key === 'ui-star-empty') return this.generateStar(key, false);
+    if (key === 'board-frame') return this.generateBoardFrame(key);
+    if (key === 'board-background') return this.generateBoardBackground(key);
+    if (key === 'bg-main-menu') return this.generateBackground(key, 0x223b82, 0x101b45, 'MENU BG');
+    if (key === 'bg-game') return this.generateBackground(key, 0x1d2d62, 0x0a1235, 'GAME BG');
+    if (key === 'effect-bokeh') return this.generateBokeh(key);
+    if (key === 'effect-sparkle') return this.generateSparkle(key);
+    if (key === 'effect-special-glow') return this.generateSpecialGlow(key);
+
+    this.generateMissingAssetFallback(key, entry.width ?? 96, entry.height ?? 96);
+  }
+
+  generateTilePlaceholder(key, label, fillColor) {
+    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillGradientStyle(fillColor, fillColor, 0xffffff, 0xffffff, 1, 1, 0.2, 0.2);
+    graphics.fillRoundedRect(0, 0, 64, 64, 14);
+    graphics.lineStyle(2, 0xffffff, 0.45);
+    graphics.strokeRoundedRect(1, 1, 62, 62, 14);
+
+    const text = this.make.text({
+      x: 32,
+      y: 32,
+      text: label.toUpperCase(),
+      style: { fontFamily: 'Arial Black', fontSize: '12px', color: '#1a1a1a' },
+      add: false
+    });
+    text.setOrigin(0.5);
+
+    this.commitTexture(key, 64, 64, [
+      { obj: graphics, x: 0, y: 0 },
+      { obj: text, x: 32, y: 32 }
+    ]);
+  }
+
+  generateSpecialPlaceholder(key, type) {
+    const baseColor = type === 'striped' ? 0xffd166 : type === 'bomb' ? 0xff8fab : 0x9b6bff;
+    this.generateTilePlaceholder(key, type, baseColor);
+
+    const overlay = this.make.graphics({ x: 0, y: 0, add: false });
+    if (type === 'striped') {
+      overlay.lineStyle(4, 0xffffff, 0.9);
+      for (let y = -8; y <= 72; y += 12) {
+        overlay.strokeLineShape(new Phaser.Geom.Line(-4, y, 68, y + 36));
+      }
+    } else if (type === 'bomb') {
+      overlay.fillStyle(0x1e1e1e, 0.9);
+      overlay.fillCircle(32, 32, 12);
+      overlay.lineStyle(3, 0xffd166, 1);
+      overlay.strokeCircle(32, 32, 14);
+    } else {
+      this.drawStarShape(overlay, 32, 32, 20, 10, 5, 0xffffff, 0.95);
+    }
+
+    const rt = this.make.renderTexture({ width: 64, height: 64, add: false });
+    rt.drawFrame(key, undefined, 32, 32);
+    rt.draw(overlay, 0, 0);
+    rt.saveTexture(`${key}-tmp`);
+    this.textures.remove(key);
+    this.textures.renameTexture(`${key}-tmp`, key);
+
+    overlay.destroy();
+    rt.destroy();
+  }
+
+  generateLabeledPanel(key, width, height, fill, label) {
+    const panel = this.make.graphics({ x: 0, y: 0, add: false });
+    panel.fillStyle(fill, 0.95);
+    panel.fillRoundedRect(0, 0, width, height, 12);
+    panel.lineStyle(2, 0xffffff, 0.4);
+    panel.strokeRoundedRect(0, 0, width, height, 12);
+
+    const text = this.make.text({
+      x: width / 2,
+      y: height / 2,
+      text: label,
+      style: { fontFamily: 'Arial Black', fontSize: '14px', color: '#ffffff' },
+      add: false
+    });
+    text.setOrigin(0.5);
+
+    this.commitTexture(key, width, height, [
+      { obj: panel, x: 0, y: 0 },
+      { obj: text, x: width / 2, y: height / 2 }
+    ]);
+  }
+
+  generatePauseIcon(key) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(4, 2, 6, 16);
+    g.fillRect(14, 2, 6, 16);
+    g.generateTexture(key, 24, 20);
+    g.destroy();
+  }
+
+  generateHighlight(key) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.lineStyle(4, 0xffffff, 0.95);
+    g.strokeCircle(32, 32, 30);
+    g.generateTexture(key, 64, 64);
+    g.destroy();
+  }
+
+  generateStar(key, filled) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    this.drawStarShape(g, 16, 16, 13, 6, 5, filled ? 0xffe066 : 0x000000, filled ? 1 : 0);
+    g.lineStyle(2, 0xffe066, 1);
+    this.drawStarPath(g, 16, 16, 13, 6, 5);
+    g.generateTexture(key, 32, 32);
+    g.destroy();
+  }
+
+  drawStarShape(graphics, cx, cy, outerRadius, innerRadius, points, fillColor, fillAlpha) {
+    const path = this.getStarPoints(cx, cy, outerRadius, innerRadius, points);
+    graphics.fillStyle(fillColor, fillAlpha);
+    graphics.beginPath();
+    graphics.moveTo(path[0].x, path[0].y);
+    path.forEach((p) => graphics.lineTo(p.x, p.y));
+    graphics.closePath();
+    graphics.fillPath();
+  }
+
+  drawStarPath(graphics, cx, cy, outerRadius, innerRadius, points) {
+    const path = this.getStarPoints(cx, cy, outerRadius, innerRadius, points);
+    graphics.beginPath();
+    graphics.moveTo(path[0].x, path[0].y);
+    path.forEach((p) => graphics.lineTo(p.x, p.y));
+    graphics.closePath();
+    graphics.strokePath();
+  }
+
+  getStarPoints(cx, cy, outerRadius, innerRadius, points) {
+    const coords = [];
+    for (let i = 0; i < points * 2; i += 1) {
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const angle = (Math.PI / points) * i - Math.PI / 2;
+      coords.push({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+    }
+    coords.push(coords[0]);
+    return coords;
+  }
+
+  generateBoardFrame(key) {
+    const w = 560;
+    const h = 560;
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0x2d2010, 0.95);
+    g.fillRoundedRect(0, 0, w, h, 24);
+    g.lineStyle(10, 0xd6b06b, 1);
+    g.strokeRoundedRect(5, 5, w - 10, h - 10, 22);
+    g.lineStyle(3, 0xffe7b0, 0.75);
+    g.strokeRoundedRect(14, 14, w - 28, h - 28, 18);
+    g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  generateBoardBackground(key) {
+    const w = 520;
+    const h = 520;
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillGradientStyle(0x0f1a3d, 0x0f1a3d, 0x1f346a, 0x1f346a, 1);
+    g.fillRoundedRect(0, 0, w, h, 16);
+    g.lineStyle(2, 0xffffff, 0.08);
+    for (let i = 1; i < 8; i += 1) {
+      const p = (w / 8) * i;
+      g.strokeLineShape(new Phaser.Geom.Line(p, 0, p, h));
+      g.strokeLineShape(new Phaser.Geom.Line(0, p, w, p));
+    }
+    g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  generateBackground(key, topColor, bottomColor, label) {
+    const w = 1280;
+    const h = 720;
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+    g.fillRect(0, 0, w, h);
+    g.lineStyle(2, 0xffffff, 0.05);
+    for (let y = 0; y < h; y += 48) {
+      g.strokeLineShape(new Phaser.Geom.Line(0, y, w, y));
+    }
+
+    const text = this.make.text({
+      x: w / 2,
+      y: h / 2,
+      text: label,
+      style: { fontFamily: 'Arial Black', fontSize: '64px', color: '#ffffff33' },
+      add: false
+    });
+    text.setOrigin(0.5);
+
+    this.commitTexture(key, w, h, [
+      { obj: g, x: 0, y: 0 },
+      { obj: text, x: w / 2, y: h / 2 }
+    ]);
+  }
+
+  generateBokeh(key) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(20, 20, 20);
+    g.generateTexture(key, 40, 40);
+    g.destroy();
+  }
+
+  generateSparkle(key) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(6, 6, 6);
+    g.generateTexture(key, 12, 12);
+    g.destroy();
+  }
+
+  generateSpecialGlow(key) {
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(40, 40, 34);
+    g.lineStyle(3, 0xffffff, 0.6);
+    g.strokeCircle(40, 40, 36);
+    g.generateTexture(key, 80, 80);
+    g.destroy();
+  }
+
+  generateMissingAssetFallback(key, width, height) {
+    const panel = this.make.graphics({ x: 0, y: 0, add: false });
+    panel.fillStyle(0x983737, 1);
+    panel.fillRect(0, 0, width, height);
+    panel.lineStyle(3, 0xffffff, 0.85);
+    panel.strokeRect(0, 0, width, height);
+
+    const label = this.make.text({
+      x: width / 2,
+      y: height / 2,
+      text: key,
+      style: { fontFamily: 'Arial Black', fontSize: '12px', color: '#ffffff', align: 'center', wordWrap: { width: width - 6 } },
+      add: false
+    });
+    label.setOrigin(0.5);
+
+    this.commitTexture(key, width, height, [
+      { obj: panel, x: 0, y: 0 },
+      { obj: label, x: width / 2, y: height / 2 }
+    ]);
+  }
+
+  commitTexture(key, width, height, layers) {
+    const rt = this.make.renderTexture({ width, height, add: false });
+    layers.forEach(({ obj, x, y }) => rt.draw(obj, x, y));
+
+    const tempKey = `${key}-rt`;
+    rt.saveTexture(tempKey);
+    if (this.textures.exists(key)) this.textures.remove(key);
+    this.textures.renameTexture(tempKey, key);
+
+    layers.forEach(({ obj }) => obj.destroy());
+    rt.destroy();
   }
 }
