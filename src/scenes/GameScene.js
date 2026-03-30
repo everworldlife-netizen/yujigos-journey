@@ -260,20 +260,22 @@ export default class GameScene extends Phaser.Scene {
     const cy = y + boardHeight / 2;
 
     const frameKey = getBoardTextureKey('frame');
-    if (this.textures.exists(frameKey)) this.boardFrameElements.push(this.add.image(cx, cy, frameKey).setDisplaySize(boardWidth + 40, boardHeight + 40).setDepth(-8));
-
-    const frameGraphics = this.add.graphics().setDepth(-9);
-    frameGraphics.fillStyle(0x2f1f0f, 0.97);
-    frameGraphics.fillRoundedRect(x - 26, y - 26, boardWidth + 52, boardHeight + 52, 26);
-    frameGraphics.lineStyle(12, 0x7d5427, 1);
-    frameGraphics.strokeRoundedRect(x - 20, y - 20, boardWidth + 40, boardHeight + 40, 24);
-    frameGraphics.lineStyle(6, 0xd6a85d, 0.9);
-    frameGraphics.strokeRoundedRect(x - 14, y - 14, boardWidth + 28, boardHeight + 28, 20);
-    frameGraphics.lineStyle(2, 0xfff0c2, 0.5);
-    frameGraphics.strokeRoundedRect(x - 10, y - 10, boardWidth + 20, boardHeight + 20, 18);
-    frameGraphics.fillStyle(0x000000, 0.26);
-    frameGraphics.fillRoundedRect(x - 6, y - 6, boardWidth + 12, boardHeight + 12, 16);
-    this.boardFrameElements.push(frameGraphics);
+    if (this.textures.exists(frameKey)) {
+      this.boardFrameElements.push(this.add.image(cx, cy, frameKey).setDisplaySize(boardWidth + 40, boardHeight + 40).setDepth(-8));
+    } else {
+      const frameGraphics = this.add.graphics().setDepth(-9);
+      frameGraphics.fillStyle(0x2f1f0f, 0.97);
+      frameGraphics.fillRoundedRect(x - 26, y - 26, boardWidth + 52, boardHeight + 52, 26);
+      frameGraphics.lineStyle(12, 0x7d5427, 1);
+      frameGraphics.strokeRoundedRect(x - 20, y - 20, boardWidth + 40, boardHeight + 40, 24);
+      frameGraphics.lineStyle(6, 0xd6a85d, 0.9);
+      frameGraphics.strokeRoundedRect(x - 14, y - 14, boardWidth + 28, boardHeight + 28, 20);
+      frameGraphics.lineStyle(2, 0xfff0c2, 0.5);
+      frameGraphics.strokeRoundedRect(x - 10, y - 10, boardWidth + 20, boardHeight + 20, 18);
+      frameGraphics.fillStyle(0x000000, 0.26);
+      frameGraphics.fillRoundedRect(x - 6, y - 6, boardWidth + 12, boardHeight + 12, 16);
+      this.boardFrameElements.push(frameGraphics);
+    }
 
     const backgroundKey = getBoardTextureKey('background');
     if (this.textures.exists(backgroundKey)) this.boardFrameElements.push(this.add.image(cx, cy, backgroundKey).setDisplaySize(boardWidth, boardHeight).setDepth(-7));
