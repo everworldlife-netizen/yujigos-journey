@@ -3,7 +3,9 @@
   "version": "2.0.0",
   "scripts": {
     "start": "webpack serve --mode development",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "prebuild": "node scripts/slice-sprites.js",
+    "slice": "node scripts/slice-sprites.js"
   },
   "dependencies": {
     "phaser": "^3.60.0"
@@ -13,6 +15,7 @@
     "webpack-cli": "^5.1.0",
     "webpack-dev-server": "^4.15.0",
     "html-webpack-plugin": "^5.6.0",
-    "copy-webpack-plugin": "^12.0.0"
+    "copy-webpack-plugin": "^12.0.0",
+    "sharp": "^0.34.4"
   }
 }
