@@ -27,6 +27,26 @@ export default class BootScene extends Phaser.Scene {
     highlight.generateTexture('highlight', 64, 64);
     highlight.destroy();
 
+    const bokeh = this.add.graphics();
+    bokeh.fillStyle(0xffffff, 1);
+    bokeh.fillCircle(20, 20, 20);
+    bokeh.generateTexture('bokeh', 40, 40);
+    bokeh.destroy();
+
+    const sparkle = this.add.graphics();
+    sparkle.fillStyle(0xffffff, 1);
+    sparkle.fillCircle(5, 5, 5);
+    sparkle.generateTexture('sparkle', 10, 10);
+    sparkle.destroy();
+
+    const glow = this.add.graphics();
+    glow.fillStyle(0xffffff, 0.9);
+    glow.fillCircle(40, 40, 34);
+    glow.lineStyle(3, 0xffffff, 0.6);
+    glow.strokeCircle(40, 40, 36);
+    glow.generateTexture('special-glow', 80, 80);
+    glow.destroy();
+
     this.scene.start('GameScene');
   }
 }
