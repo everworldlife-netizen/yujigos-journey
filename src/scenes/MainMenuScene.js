@@ -7,28 +7,30 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   create() {
+    const scaleFactor = Phaser.Math.Clamp(this.scale.width / 720, 0.8, 1.2);
     this.createAmbience();
 
     this.add
-      .text(this.scale.width / 2, 130, 'Yuji\'s Journey', {
+      .text(this.scale.width / 2, this.scale.height * 0.22, 'Yuji\'s Journey', {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
-        fontSize: '52px',
+        fontSize: `${Math.floor(52 * scaleFactor)}px`,
         fontStyle: '700',
         color: '#ffffff',
         stroke: '#1f2d4f',
-        strokeThickness: 6
+        strokeThickness: Math.max(4, Math.floor(6 * scaleFactor))
       })
       .setOrigin(0.5);
 
     const buttonKey = getUiTextureKey('button');
+    const buttonY = this.scale.height * 0.52;
     const button = this.textures.exists(buttonKey)
-      ? this.add.image(this.scale.width / 2, 300, buttonKey)
-      : this.add.rectangle(this.scale.width / 2, 300, 220, 66, 0x24324f, 0.95).setStrokeStyle(2, 0xffffff, 0.4);
+      ? this.add.image(this.scale.width / 2, buttonY, buttonKey).setDisplaySize(Math.min(320, this.scale.width * 0.46), 72)
+      : this.add.rectangle(this.scale.width / 2, buttonY, 220, 72, 0x24324f, 0.95).setStrokeStyle(2, 0xffffff, 0.4);
     button.setInteractive({ useHandCursor: true });
     const text = this.add
       .text(button.x, button.y, 'Play', {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
-        fontSize: '36px',
+        fontSize: `${Math.floor(38 * scaleFactor)}px`,
         fontStyle: '700',
         color: '#ffdd44'
       })

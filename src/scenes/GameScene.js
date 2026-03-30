@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE } from '../config.js';
+import { COLS, ROWS } from '../config.js';
+import { calculateLayout } from '../utils/Layout.js';
 import Board from '../systems/Board.js';
 import SwapController from '../systems/SwapController.js';
 import CascadeController from '../systems/CascadeController.js';
@@ -35,6 +36,7 @@ export default class GameScene extends Phaser.Scene {
     this.dragTile = null;
 
     this.cameras.main.setBackgroundColor('#091022');
+    this.layout = calculateLayout(this.scale.width, this.scale.height);
     this.createAmbience();
     this.createBoardFrame();
 
@@ -65,6 +67,8 @@ export default class GameScene extends Phaser.Scene {
     this.scene.launch('UIScene');
     EventBus.emit('ui:update', this.goalController.getState());
     this.scene.bringToTop('UIScene');
+
+    this.scale.on('resize', this.handleResize, this);
   }
 
   bindEvents() {
@@ -92,6 +96,7 @@ export default class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.updateParallax, this);
 
     this.events.once('shutdown', () => {
+      this.scale.off('resize', this.handleResize, this);
       EventBus.off('game:pause', this.openPause, this);
       EventBus.off('pause:resume', this.resumeGame, this);
       EventBus.off('pause:restart', this.restartGame, this);
@@ -148,11 +153,40 @@ export default class GameScene extends Phaser.Scene {
 
   onTilePointerDown(tile) {
     this.dragTile = tile;
+    this.dragStart = { x: tile.x, y: tile.y };
     tile.setData('interactiveScale', 1.08);
     this.tweens.add({ targets: tile, scaleX: 1.08, scaleY: 1.08, duration: 60, ease: 'Sine.Out' });
   }
 
-  onTilePointerUp(tile) {
+  onTilePointerUp(tile, pointer) {
+    if (pointer && this.dragStart && !this.swapController.locked) {
+      const dx = pointer.x - this.dragStart.x;
+      const dy = pointer.y - this.dragStart.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const minSwipe = 20;
+      if (distance >= minSwipe) {
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        const minAxis = Math.max(0.01, Math.min(absX, absY));
+        const maxAxis = Math.max(absX, absY);
+        const angleDeg = Phaser.Math.RadToDeg(Math.atan2(minAxis, maxAxis));
+        if (angleDeg <= 45) {
+          const row = tile.getData('row');
+          const col = tile.getData('col');
+          const target =
+            absX >= absY
+              ? { row, col: col + (dx > 0 ? 1 : -1) }
+              : { row: row + (dy > 0 ? 1 : -1), col };
+          if (target.row >= 0 && target.row < ROWS && target.col >= 0 && target.col < COLS) {
+            this.swapController.selected = { row, col };
+            this.hideSelectionGlow();
+            this.swapController.selected = null;
+            this.swapController.trySwap({ row, col }, target);
+          }
+        }
+      }
+    }
+
     tile.setData('interactiveScale', 1);
     this.tweens.add({
       targets: tile,
@@ -164,6 +198,7 @@ export default class GameScene extends Phaser.Scene {
       onUpdate: () => this.syncSpecialSprite(tile)
     });
     this.dragTile = null;
+    this.dragStart = null;
   }
 
   onTileDragged(tile, pointer) {
@@ -198,6 +233,28 @@ export default class GameScene extends Phaser.Scene {
     this.hideSelectionGlow();
     this.swapController.selected = null;
     this.swapController.trySwap(selected, tilePos);
+  }
+
+  handleResize(gameSize) {
+    this.layout = calculateLayout(gameSize.width, gameSize.height);
+    if (this.flashOverlay) this.flashOverlay.setSize(gameSize.width, gameSize.height);
+    if (this.vignette) this.vignette.setPosition(gameSize.width / 2, gameSize.height / 2).setSize(gameSize.width, gameSize.height);
+    if (this.bgImage) this.bgImage.setPosition(gameSize.width / 2, gameSize.height / 2).setDisplaySize(gameSize.width, gameSize.height);
+    if (this.radialGlow) this.radialGlow.setPosition(gameSize.width / 2, gameSize.height / 2);
+
+    this.createBoardFrame();
+    if (this.board?.tiles) {
+      for (const rowTiles of this.board.tiles) {
+        for (const tile of rowTiles) {
+          if (!tile) continue;
+          const { x, y } = this.board.gridToWorld(tile.getData('row'), tile.getData('col'));
+          tile.setPosition(x, y).setDisplaySize(this.layout.tileSize, this.layout.tileSize);
+          const specialSprite = tile.getData('specialSprite');
+          if (specialSprite) specialSprite.setPosition(x, y).setDisplaySize(this.layout.tileSize, this.layout.tileSize);
+          this.resumeIdleFloat(tile);
+        }
+      }
+    }
   }
 
   tweenToGrid(tile, row, col, duration, easeOrOptions = 'Cubic.Out') {
@@ -282,7 +339,7 @@ export default class GameScene extends Phaser.Scene {
         quantity: 1,
         frequency: 700,
         tint: [0x8bb6ff, 0xc89fff, 0xffc58a],
-        maxParticles: 20,
+        maxParticles: this.scale.width < 768 ? 10 : 20,
         blendMode: 'ADD'
       })
       .setDepth(-20);
@@ -290,7 +347,7 @@ export default class GameScene extends Phaser.Scene {
 
   emitMatchBurst(tile, type) {
     this.matchParticles.setTint(TILE_PARTICLE_TINTS[type] ?? 0xffffff);
-    const baseCount = Phaser.Math.Between(10, 14);
+    const baseCount = this.scale.width < 768 ? Phaser.Math.Between(8, 12) : Phaser.Math.Between(10, 14);
     const count = Math.round(baseCount * this.comboParticleMultiplier);
     this.matchParticles.explode(Math.min(count, MAX_PARTICLES), tile.x, tile.y);
   }
@@ -383,7 +440,7 @@ export default class GameScene extends Phaser.Scene {
       return pooled;
     }
     const text = this.add
-      .text(this.scale.width / 2, BOARD_OFFSET_Y - 18, '', {
+      .text(this.scale.width / 2, this.layout.boardY - 18, '', {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
         fontSize: '36px',
         fontStyle: '700',
@@ -424,7 +481,7 @@ export default class GameScene extends Phaser.Scene {
         stroke: tier.stroke,
         strokeThickness: 6
       })
-      .setPosition(this.scale.width / 2, BOARD_OFFSET_Y - 18)
+      .setPosition(this.scale.width / 2, this.layout.boardY - 18)
       .setScale(1)
       .setAlpha(1);
 
@@ -556,16 +613,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createBoardFrame() {
-    const boardWidth = COLS * TILE_SIZE;
-    const boardHeight = ROWS * TILE_SIZE;
-    const x = BOARD_OFFSET_X;
-    const y = BOARD_OFFSET_Y;
+    this.boardFrameElements?.forEach((element) => element.destroy());
+    this.boardFrameElements = [];
+    const { boardWidth, boardHeight, boardX: x, boardY: y } = this.layout;
     const cx = x + boardWidth / 2;
     const cy = y + boardHeight / 2;
 
     const frameKey = getBoardTextureKey('frame');
     if (this.textures.exists(frameKey)) {
-      this.add.image(cx, cy, frameKey).setDisplaySize(boardWidth + 40, boardHeight + 40).setDepth(-8);
+      this.boardFrameElements.push(this.add.image(cx, cy, frameKey).setDisplaySize(boardWidth + 40, boardHeight + 40).setDepth(-8));
     }
 
     const frameGraphics = this.add.graphics().setDepth(-9);
@@ -576,14 +632,17 @@ export default class GameScene extends Phaser.Scene {
     frameGraphics.lineStyle(3, 0xffe3a0, 0.7);
     frameGraphics.strokeRoundedRect(x - 12, y - 12, boardWidth + 24, boardHeight + 24, 18);
 
-    this.add.rectangle(cx, cy, boardWidth - 12, boardHeight - 12, 0x000000, 0.2).setDepth(-7);
+    this.boardFrameElements.push(frameGraphics);
+    this.boardFrameElements.push(this.add.rectangle(cx, cy, boardWidth - 12, boardHeight - 12, 0x000000, 0.2).setDepth(-7));
 
     this.boardFrameGlow = this.add.rectangle(cx, cy, boardWidth + 48, boardHeight + 48, 0xffd998, 0.12).setDepth(-10);
     this.boardFrameGlow.setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: this.boardFrameGlow, alpha: { from: 0.08, to: 0.2 }, duration: 1600, yoyo: true, repeat: -1 });
+    this.boardFrameElements.push(this.boardFrameGlow);
 
     this.frameShimmer = this.add.rectangle(x - 20, y - 20, 26, 4, 0xfff0c7, 0.6).setOrigin(0.5).setDepth(-6);
     this.frameShimmer.setBlendMode(Phaser.BlendModes.ADD);
+    this.boardFrameElements.push(this.frameShimmer);
     this.tweens.addCounter({
       from: 0,
       to: 1,
@@ -611,9 +670,9 @@ export default class GameScene extends Phaser.Scene {
 
     const backgroundKey = getBoardTextureKey('background');
     if (this.textures.exists(backgroundKey)) {
-      this.add.image(cx, cy, backgroundKey).setDisplaySize(boardWidth, boardHeight).setDepth(-7);
+      this.boardFrameElements.push(this.add.image(cx, cy, backgroundKey).setDisplaySize(boardWidth, boardHeight).setDepth(-7));
     } else {
-      this.add.rectangle(cx, cy, boardWidth, boardHeight, 0x162b57, 0.95).setDepth(-7);
+      this.boardFrameElements.push(this.add.rectangle(cx, cy, boardWidth, boardHeight, 0x162b57, 0.95).setDepth(-7));
     }
   }
 
@@ -628,7 +687,7 @@ export default class GameScene extends Phaser.Scene {
     const { x, y } = this.board.gridToWorld(tilePos.row, tilePos.col);
     const tile = this.board.tiles[tilePos.row][tilePos.col];
     if (!this.selectionGlow) {
-      this.selectionGlow = this.add.circle(x, y, TILE_SIZE * 0.6, 0xb9f7ff, 0.55).setDepth(4);
+      this.selectionGlow = this.add.circle(x, y, this.layout.tileSize * 0.6, 0xb9f7ff, 0.55).setDepth(4);
       this.selectionGlow.setBlendMode(Phaser.BlendModes.ADD);
     } else {
       this.selectionGlow.setPosition(x, y).setVisible(true);
