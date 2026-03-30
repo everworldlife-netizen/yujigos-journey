@@ -34,9 +34,11 @@ export class Match3 {
   chain = 0;
 
   constructor(private level: LevelConfig, seed = Date.now()) {
-    this.gemTypes = level.gemTypes;
+    this.gemTypes = Math.min(6, level.gemTypes);
     Phaser.Math.RND.sow([`${seed}`]);
     this.grid = this.createBoard();
+    this.ensureNoInitialMatches();
+    this.logBoard('initial board');
   }
 
   private randomType(): number {
@@ -68,6 +70,33 @@ export class Match3 {
     return board;
   }
 
+  private ensureNoInitialMatches(): void {
+    let matches = this.findMatches();
+    let safety = 0;
+    while (matches.length > 0 && safety < 200) {
+      const rerollSet = new Set(matches.flatMap((m) => m.cells));
+      for (const cell of rerollSet) {
+        let nextType = this.randomType();
+        let guard = 0;
+        while (nextType === cell.gemType && guard < 20) {
+          nextType = this.randomType();
+          guard += 1;
+        }
+        cell.gemType = nextType;
+        cell.special = 'none';
+      }
+      matches = this.findMatches();
+      safety += 1;
+    }
+  }
+
+  logBoard(label: string): void {
+    console.log(`[match3] ${label}`);
+    for (let row = 0; row < this.rows; row += 1) {
+      console.log(`r${row}: ${this.grid[row].map((cell) => cell.gemType).join(' ')}`);
+    }
+  }
+
   getCell(row: number, col: number): GemCell | null {
     if (row < 0 || col < 0 || row >= this.rows || col >= this.cols) return null;
     return this.grid[row][col];
@@ -93,6 +122,13 @@ export class Match3 {
     this.grid[ar][ac].col = ac;
     this.grid[br][bc].row = br;
     this.grid[br][bc].col = bc;
+  }
+
+  swapByPosition(aRow: number, aCol: number, bRow: number, bCol: number): { a: GemCell; b: GemCell } {
+    const a = this.grid[aRow][aCol];
+    const b = this.grid[bRow][bCol];
+    this.swap(a, b);
+    return { a: this.grid[aRow][aCol], b: this.grid[bRow][bCol] };
   }
 
   findMatches(): MatchGroup[] {
@@ -140,10 +176,10 @@ export class Match3 {
       else merged.push([...g]);
     }
 
-    return merged.map((cells) => {
+    const results = merged.map((cells) => {
       const rows = new Set(cells.map((c) => c.row));
       const cols = new Set(cells.map((c) => c.col));
-      const orientation = rows.size > 1 && cols.size > 1 ? 'mixed' : rows.size === 1 ? 'h' : 'v';
+      const orientation: MatchGroup['orientation'] = rows.size > 1 && cols.size > 1 ? 'mixed' : rows.size === 1 ? 'h' : 'v';
       let createsSpecial: MatchGroup['createsSpecial'];
       if (orientation === 'mixed' && cells.length >= 5) {
         const anchor = cells[0];
@@ -156,6 +192,21 @@ export class Match3 {
         createsSpecial = { row: anchor.row, col: anchor.col, special: orientation === 'h' ? 'lineH' : 'lineV', gemType: anchor.gemType };
       }
       return { cells, orientation, createsSpecial };
+    });
+    return results;
+  }
+
+  logSwapDebug(
+    from: { row: number; col: number },
+    to: { row: number; col: number },
+    matches: MatchGroup[],
+  ): void {
+    const fromCell = this.grid[from.row][from.col];
+    const toCell = this.grid[to.row][to.col];
+    console.log('[match3] swap check', {
+      from: { ...from, gemType: fromCell.gemType },
+      to: { ...to, gemType: toCell.gemType },
+      matches: matches.map((m) => m.cells.map((c) => ({ row: c.row, col: c.col, gemType: c.gemType }))),
     });
   }
 

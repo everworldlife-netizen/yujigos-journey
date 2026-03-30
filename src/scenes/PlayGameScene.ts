@@ -178,16 +178,18 @@ export class PlayGameScene extends Phaser.Scene {
 
   private async trySwap(a: GemCell, b: GemCell): Promise<void> {
     this.resolving = true;
-    console.log('swap attempted', { from: { row: a.row, col: a.col }, to: { row: b.row, col: b.col } });
+    const from = { row: a.row, col: a.col };
+    const to = { row: b.row, col: b.col };
+    console.log('swap attempted', { from, to });
     this.audioFx.swap();
     await this.animateSwap(a, b, 200);
-    this.model.swap(a, b);
+    this.model.swapByPosition(from.row, from.col, to.row, to.col);
     const matches = this.model.findMatches();
-    console.log('matches found', matches.map((m) => m.cells.map((c) => ({ row: c.row, col: c.col }))));
+    this.model.logSwapDebug(from, to, matches);
     if (matches.length === 0) {
       this.audioFx.invalid();
-      await this.animateSwap(this.model.grid[a.row][a.col], this.model.grid[b.row][b.col], 170);
-      this.model.swap(this.model.grid[a.row][a.col], this.model.grid[b.row][b.col]);
+      await this.animateSwap(this.model.grid[from.row][from.col], this.model.grid[to.row][to.col], 170);
+      this.model.swapByPosition(from.row, from.col, to.row, to.col);
       this.resolving = false;
       return;
     }
