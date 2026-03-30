@@ -1,27 +1,34 @@
+import { ASSET_MANIFEST } from './AssetManifest.js';
+
 export const TILE_TEXTURES = {
-  red: 'tile-0',
-  blue: 'tile-1',
-  green: 'tile-2',
-  yellow: 'tile-3',
-  purple: 'tile-4',
-  orange: 'tile-5'
+  red: ASSET_MANIFEST.tiles.red.key,
+  blue: ASSET_MANIFEST.tiles.blue.key,
+  green: ASSET_MANIFEST.tiles.green.key,
+  yellow: ASSET_MANIFEST.tiles.yellow.key,
+  purple: ASSET_MANIFEST.tiles.purple.key,
+  orange: ASSET_MANIFEST.tiles.orange.key
 };
 
 export const SPECIAL_TEXTURES = {
-  striped: 'special-striped',
-  bomb: 'special-bomb',
-  rainbow: 'special-rainbow'
+  striped: ASSET_MANIFEST.specials.striped.key,
+  bomb: ASSET_MANIFEST.specials.bomb.key,
+  rainbow: ASSET_MANIFEST.specials.rainbow.key
 };
 
 export const UI_TEXTURES = {
-  panel: 'ui-panel',
-  button: 'ui-button',
-  pauseIcon: 'ui-pause-icon',
-  highlight: 'highlight',
-  bokeh: 'bokeh',
-  sparkle: 'sparkle',
-  boardFrame: 'board-frame',
-  specialGlow: 'special-glow'
+  panel: ASSET_MANIFEST.ui.panel.key,
+  button: ASSET_MANIFEST.ui.button.key,
+  pauseIcon: ASSET_MANIFEST.ui.pauseIcon.key,
+  highlight: ASSET_MANIFEST.ui.highlight.key,
+  starFilled: ASSET_MANIFEST.ui.starFilled.key,
+  starEmpty: ASSET_MANIFEST.ui.starEmpty.key,
+  bokeh: ASSET_MANIFEST.effects.bokeh.key,
+  sparkle: ASSET_MANIFEST.effects.sparkle.key,
+  boardFrame: ASSET_MANIFEST.board.frame.key,
+  boardBackground: ASSET_MANIFEST.board.background.key,
+  specialGlow: ASSET_MANIFEST.effects.specialGlow.key,
+  mainMenuBackground: ASSET_MANIFEST.backgrounds.mainMenu.key,
+  gameBackground: ASSET_MANIFEST.backgrounds.game.key
 };
 
 export const PARTICLE_CONFIG = {
@@ -41,4 +48,11 @@ export const PARTICLE_CONFIG = {
   }
 };
 
-export const TILE_KEYS = Object.values(TILE_TEXTURES);
+export const TILE_KEYS = [
+  TILE_TEXTURES.red,
+  TILE_TEXTURES.blue,
+  TILE_TEXTURES.green,
+  TILE_TEXTURES.yellow,
+  TILE_TEXTURES.purple,
+  TILE_TEXTURES.orange
+];
