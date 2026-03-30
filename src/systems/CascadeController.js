@@ -26,10 +26,12 @@ export default class CascadeController {
     return Promise.all(
       moves.map(({ fromRow, toRow, col }) => {
         const tile = this.board.tiles[toRow][col];
-        return this.scene.tweenToGrid(tile, toRow, col, Math.max(140, Math.abs(toRow - fromRow) * 115), {
-          ease: 'Cubic.In',
+        const fallDistance = Math.abs(toRow - fromRow);
+        return this.scene.tweenToGrid(tile, toRow, col, Math.max(120, fallDistance * 95), {
+          ease: 'Quad.In',
           landingBounce: true,
-          delay: col * 18
+          overshoot: 4,
+          delay: col * 16
         });
       })
     );

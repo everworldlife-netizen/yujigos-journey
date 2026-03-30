@@ -28,11 +28,14 @@ export default class SpawnController {
         const tile = this.board.createTileSprite(row, col, type, from.x, from.y).setScale(0);
         tile.setData('idlePhase', Math.random() * Math.PI * 2);
         tile.setData('idleAmplitude', 1.3 + Math.random() * 0.7);
+        tile.setData('idleRotPhase', Math.random() * Math.PI * 2);
+        tile.setData('idleRotAmplitude', 0.6 + Math.random() * 0.4);
         return Promise.all([
-          this.scene.tweenToGrid(tile, row, col, Math.max(140, Math.abs(row - fromRow) * 110), {
-            ease: 'Cubic.In',
+          this.scene.tweenToGrid(tile, row, col, Math.max(120, Math.abs(row - fromRow) * 95), {
+            ease: 'Quad.In',
             landingBounce: true,
-            delay: col * 18
+            overshoot: 4,
+            delay: row * 30
           }),
           new Promise((resolve) => {
             this.scene.tweens.add({
