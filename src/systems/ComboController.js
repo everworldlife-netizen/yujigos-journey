@@ -11,13 +11,11 @@ export default class ComboController {
 
   bump() {
     this.depth += 1;
-    if (this.depth > 1) {
-      EventBus.emit('combo:changed', { depth: this.depth });
-    }
+    EventBus.emit('combo:changed', { depth: this.depth });
     return this.depth;
   }
 
   getMultiplier() {
-    return 1 + Math.max(0, this.depth - 1) * 0.25;
+    return Math.max(1, this.depth);
   }
 }

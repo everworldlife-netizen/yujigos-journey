@@ -2,19 +2,22 @@ import Phaser from 'phaser';
 import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE } from '../config.js';
 import Board from '../systems/Board.js';
 import SwapController from '../systems/SwapController.js';
-import MatchFinder from '../systems/MatchFinder.js';
 import CascadeController from '../systems/CascadeController.js';
 import SpawnController from '../systems/SpawnController.js';
 import ComboController from '../systems/ComboController.js';
 import GoalController from '../systems/GoalController.js';
 import EventBus from '../core/EventBus.js';
-import { PARTICLE_CONFIG, SPECIAL_TEXTURES, TILE_KEYS, UI_TEXTURES } from '../config/AssetConfig.js';
+import { PARTICLE_CONFIG, SPECIAL_TEXTURES, UI_TEXTURES } from '../config/AssetConfig.js';
 
 const TILE_COLORS = [0xff4444, 0x4488ff, 0x44dd44, 0xffdd44, 0xbb44ff, 0xff8844];
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene');
+  }
+
+  init(data) {
+    this.level = data?.level ?? 1;
   }
 
   create() {
@@ -25,16 +28,8 @@ export default class GameScene extends Phaser.Scene {
     this.board = new Board(this);
     this.board.createInitialGrid();
 
-    let result = MatchFinder.find(this.board.grid);
-    while (result.matches.length) {
-      result.matches.forEach(({ row, col }) => {
-        this.board.grid[row][col] = this.board.randomType();
-      });
-      result = MatchFinder.find(this.board.grid);
-    }
-
     this.comboController = new ComboController();
-    this.goalController = new GoalController();
+    this.goalController = new GoalController(this.level);
     this.spawnController = new SpawnController(this, this.board);
     this.cascadeController = new CascadeController(this, this.board, this.spawnController, this.comboController);
     this.swapController = new SwapController(this, this.board, this.cascadeController, this.goalController);
@@ -47,6 +42,10 @@ export default class GameScene extends Phaser.Scene {
     this.createTiles();
     this.bindEvents();
 
+    if (this.scene.isActive('UIScene')) {
+      this.scene.stop('UIScene');
+    }
+    this.scene.launch('UIScene');
     EventBus.emit('ui:update', this.goalController.getState());
     this.scene.bringToTop('UIScene');
   }
@@ -56,15 +55,14 @@ export default class GameScene extends Phaser.Scene {
     EventBus.on('pause:resume', this.resumeGame, this);
     EventBus.on('pause:restart', this.restartGame, this);
     EventBus.on('pause:quit', this.quitGame, this);
-    EventBus.on('combo:changed', ({ depth }) => this.showComboFeedback(depth), this);
+    EventBus.on('combo:changed', this.showComboFeedback, this);
 
-    this.events.on('matches-resolved', ({ chain, matchCount, consumeMove }) => {
-      this.goalController.addScore(matchCount * 10 + chain * 5, this.comboController.getMultiplier());
-      if (consumeMove) this.goalController.evaluate(this.hasValidMoves());
+    this.events.on('matches-resolved', ({ chain, matchCount }) => {
+      this.goalController.addScore(matchCount * 10, chain);
     });
 
     this.events.on('turn-complete', () => {
-      const state = this.goalController.evaluate(this.hasValidMoves());
+      const state = this.goalController.evaluate();
       if (state !== 'active') {
         this.swapController.lock();
         this.scene.launch('ResultsScene', { ...this.goalController.getState(), win: state === 'win' });
@@ -76,7 +74,7 @@ export default class GameScene extends Phaser.Scene {
       EventBus.off('pause:resume', this.resumeGame, this);
       EventBus.off('pause:restart', this.restartGame, this);
       EventBus.off('pause:quit', this.quitGame, this);
-      EventBus.off('combo:changed', ({ depth }) => this.showComboFeedback(depth), this);
+      EventBus.off('combo:changed', this.showComboFeedback, this);
     });
   }
 
@@ -85,8 +83,6 @@ export default class GameScene extends Phaser.Scene {
     for (let row = 0; row < ROWS; row += 1) {
       for (let col = 0; col < COLS; col += 1) {
         const tile = this.board.createTileAt(row, col, this.board.grid[row][col]).setScale(0).setAlpha(0);
-        tile.setInteractive({ useHandCursor: true });
-        tile.on('pointerdown', () => this.onTilePicked({ row, col }));
         tile.setData('idlePhase', Phaser.Math.FloatBetween(0, Math.PI * 2));
         tile.setData('idleAmplitude', Phaser.Math.FloatBetween(1.3, 2));
 
@@ -129,8 +125,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (!this.swapController.areAdjacent(selected, tilePos)) {
-      this.swapController.selected = tilePos;
-      this.showSelectionGlow(tilePos);
       return;
     }
 
@@ -246,26 +240,6 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
-  playLandingSquash(tile) {
-    if (!tile) return Promise.resolve();
-    return new Promise((resolve) => {
-      this.tweens.add({
-        targets: [tile, tile.getData('specialSprite')].filter(Boolean),
-        scaleX: 1.08,
-        scaleY: 0.93,
-        duration: 80,
-        ease: 'Sine.Out',
-        yoyo: true,
-        onComplete: () => {
-          tile.setScale(1);
-          const specialSprite = tile.getData('specialSprite');
-          if (specialSprite) specialSprite.setScale(1).setPosition(tile.x, tile.y);
-          resolve();
-        }
-      });
-    });
-  }
-
   flashSpecialGlow(x, y) {
     const glow = this.add.image(x, y, UI_TEXTURES.specialGlow).setDepth(18).setBlendMode(Phaser.BlendModes.ADD);
     glow.setScale(PARTICLE_CONFIG.specialGlow.scale.from);
@@ -287,7 +261,8 @@ export default class GameScene extends Phaser.Scene {
     if (depth >= 5) this.comboParticleMultiplier = 3;
   }
 
-  showComboFeedback(chainLevel) {
+  showComboFeedback({ depth }) {
+    const chainLevel = depth;
     const levels = [
       { min: 2, text: 'Nice!', size: 34, color: '#fff6bf', stroke: '#603500', particles: 1, shake: 0, flash: 0 },
       { min: 3, text: 'Great!', size: 42, color: '#fff0c2', stroke: '#633300', particles: 1.5, shake: 2, flash: 0 },
@@ -296,7 +271,8 @@ export default class GameScene extends Phaser.Scene {
     ];
     const tier = levels.reduce((acc, entry) => (chainLevel >= entry.min ? entry : acc), levels[0]);
     this.comboParticleMultiplier = tier.particles;
-    console.log(`combo-sfx placeholder | depth=${chainLevel} | pitch=${1 + chainLevel * 0.12}`);
+
+    if (chainLevel < 2) return;
 
     const text = this.add
       .text(this.scale.width / 2, BOARD_OFFSET_Y - 18, tier.text, {
@@ -336,35 +312,6 @@ export default class GameScene extends Phaser.Scene {
         ease: 'Sine.Out'
       });
     }
-    if (chainLevel >= 5) {
-      this.tweens.addCounter({
-        from: 0,
-        to: 360,
-        duration: 480,
-        onUpdate: (tween) => {
-          const color = Phaser.Display.Color.HSVToRGB((tween.getValue() % 360) / 360, 0.75, 1);
-          text.setColor(`#${color.color.toString(16).padStart(6, '0')}`);
-        }
-      });
-    }
-  }
-
-  hasValidMoves() {
-    for (let row = 0; row < ROWS; row += 1) {
-      for (let col = 0; col < COLS; col += 1) {
-        const dirs = [[0, 1], [1, 0]];
-        for (const [dr, dc] of dirs) {
-          const nr = row + dr;
-          const nc = col + dc;
-          if (nr >= ROWS || nc >= COLS) continue;
-          [this.board.grid[row][col], this.board.grid[nr][nc]] = [this.board.grid[nr][nc], this.board.grid[row][col]];
-          const hasMatch = MatchFinder.find(this.board.grid).matches.length > 0;
-          [this.board.grid[row][col], this.board.grid[nr][nc]] = [this.board.grid[nr][nc], this.board.grid[row][col]];
-          if (hasMatch) return true;
-        }
-      }
-    }
-    return false;
   }
 
   openPause() {
@@ -384,8 +331,7 @@ export default class GameScene extends Phaser.Scene {
   restartGame() {
     this.scene.stop('PauseScene');
     this.scene.stop('UIScene');
-    this.scene.restart();
-    this.scene.launch('UIScene');
+    this.scene.restart({ level: this.level });
   }
 
   quitGame() {
@@ -397,43 +343,6 @@ export default class GameScene extends Phaser.Scene {
   createAmbience() {
     const { width, height } = this.scale;
     this.add.image(width / 2, height / 2, UI_TEXTURES.gameBackground).setDisplaySize(width, height).setDepth(-30);
-    const colorDrift = this.add.rectangle(width / 2, height / 2, width, height, 0x56a3ff, 0.08).setDepth(-29);
-    this.tweens.add({
-      targets: colorDrift,
-      alpha: { from: 0.05, to: 0.12 },
-      duration: 4500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut'
-    });
-    this.tweens.addCounter({
-      from: 0,
-      to: 360,
-      duration: 22000,
-      repeat: -1,
-      onUpdate: (tween) => {
-        const color = Phaser.Display.Color.HSVToRGB((tween.getValue() % 360) / 360, 0.4, 1);
-        colorDrift.setFillStyle(color.color, colorDrift.alpha);
-      }
-    });
-    for (let i = 0; i < 12; i += 1) {
-      const light = this.add
-        .image(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), UI_TEXTURES.bokeh)
-        .setTint(Phaser.Display.Color.GetColor(200 + Phaser.Math.Between(0, 40), 180, 255))
-        .setAlpha(Phaser.Math.FloatBetween(0.08, 0.2))
-        .setScale(Phaser.Math.FloatBetween(1.2, 3))
-        .setDepth(-25);
-      this.tweens.add({
-        targets: light,
-        x: light.x + Phaser.Math.Between(-40, 40),
-        y: light.y + Phaser.Math.Between(-70, 70),
-        alpha: Phaser.Math.FloatBetween(0.06, 0.16),
-        duration: Phaser.Math.Between(7000, 14000),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.InOut'
-      });
-    }
   }
 
   createBoardFrame() {
@@ -450,24 +359,6 @@ export default class GameScene extends Phaser.Scene {
       .image(x + boardWidth / 2, y + boardHeight / 2, UI_TEXTURES.boardBackground)
       .setDisplaySize(boardWidth, boardHeight)
       .setDepth(-7);
-
-    const shimmerPath = new Phaser.Curves.Path(x - 14, y - 14)
-      .lineTo(x + boardWidth + 14, y - 14)
-      .lineTo(x + boardWidth + 14, y + boardHeight + 14)
-      .lineTo(x - 14, y + boardHeight + 14)
-      .lineTo(x - 14, y - 14);
-    const shimmer = this.add.rectangle(x - 14, y - 14, 40, 3, 0xfff6cc, 0.8).setOrigin(0.5).setDepth(-5);
-    shimmer.setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: 5000,
-      repeat: -1,
-      onUpdate: (tween) => {
-        const p = shimmerPath.getPoint(tween.getValue());
-        shimmer.setPosition(p.x, p.y);
-      }
-    });
   }
 
   showSelectionGlow(tilePos) {

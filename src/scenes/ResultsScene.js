@@ -12,7 +12,7 @@ export default class ResultsScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const { score, targetScore, win } = this.dataModel;
+    const { score, targetScore, win, level } = this.dataModel;
     const stars = win ? Math.max(1, Math.min(3, Math.ceil((score / targetScore) * 3))) : 0;
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
@@ -24,15 +24,25 @@ export default class ResultsScene extends Phaser.Scene {
       starRow.add(this.add.image((i - 1) * 42, 0, key).setDisplaySize(36, 36));
     }
 
-    const next = this.add
-      .text(width / 2, 360, 'Next Level', { fontSize: '30px', color: '#ffdd44', backgroundColor: '#1f2937', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+    const restart = this.makeButton(width / 2, 360, 'Restart');
+    restart.on('pointerdown', () => {
+      this.scene.stop('ResultsScene');
+      this.scene.stop('UIScene');
+      this.scene.start('GameScene', { level });
+    });
 
+    const next = this.makeButton(width / 2, 430, 'Next Level');
     next.on('pointerdown', () => {
       this.scene.stop('ResultsScene');
-      this.scene.start('MainMenuScene');
       this.scene.stop('UIScene');
+      this.scene.start('GameScene', { level: level + 1 });
     });
+  }
+
+  makeButton(x, y, text) {
+    return this.add
+      .text(x, y, text, { fontSize: '30px', color: '#ffdd44', backgroundColor: '#1f2937', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
   }
 }
