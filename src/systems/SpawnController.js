@@ -26,8 +26,14 @@ export default class SpawnController {
       spawns.map(({ row, col, type, fromRow }) => {
         const from = this.board.gridToWorld(fromRow, col);
         const tile = this.board.createTileSprite(row, col, type, from.x, from.y).setScale(0);
+        tile.setData('idlePhase', Math.random() * Math.PI * 2);
+        tile.setData('idleAmplitude', 1.3 + Math.random() * 0.7);
         return Promise.all([
-          this.scene.tweenToGrid(tile, row, col, Math.max(120, Math.abs(row - fromRow) * 105)),
+          this.scene.tweenToGrid(tile, row, col, Math.max(140, Math.abs(row - fromRow) * 110), {
+            ease: 'Cubic.In',
+            landingBounce: true,
+            delay: col * 18
+          }),
           new Promise((resolve) => {
             this.scene.tweens.add({
               targets: tile,
