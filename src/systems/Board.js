@@ -45,8 +45,18 @@ export default class Board {
     sprite.setData('col', col);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on('pointerdown', () => {
+      if (this.scene.onTilePointerDown) this.scene.onTilePointerDown(sprite);
       if (!this.scene.onTilePicked) return;
       this.scene.onTilePicked({ row: sprite.getData('row'), col: sprite.getData('col') });
+    });
+    sprite.on('pointerup', () => {
+      if (this.scene.onTilePointerUp) this.scene.onTilePointerUp(sprite);
+    });
+    sprite.on('pointerout', () => {
+      if (this.scene.onTilePointerUp) this.scene.onTilePointerUp(sprite);
+    });
+    sprite.on('pointermove', (pointer) => {
+      if (this.scene.onTileDragged) this.scene.onTileDragged(sprite, pointer);
     });
     this.tiles[row][col] = sprite;
     this.grid[row][col] = type;
