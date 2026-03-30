@@ -1,0 +1,67 @@
+import Phaser from 'phaser';
+import { UI_TEXTURES } from '../config/AssetConfig.js';
+
+export default class MainMenuScene extends Phaser.Scene {
+  constructor() {
+    super('MainMenuScene');
+  }
+
+  create() {
+    this.createAmbience();
+
+    this.add
+      .text(this.scale.width / 2, 130, 'Yuji\'s Journey', {
+        fontFamily: 'Trebuchet MS, Arial, sans-serif',
+        fontSize: '52px',
+        fontStyle: '700',
+        color: '#ffffff',
+        stroke: '#1f2d4f',
+        strokeThickness: 6
+      })
+      .setOrigin(0.5);
+
+    const button = this.add.image(this.scale.width / 2, 300, UI_TEXTURES.button).setInteractive({ useHandCursor: true });
+    const text = this.add
+      .text(button.x, button.y, 'Play', {
+        fontFamily: 'Trebuchet MS, Arial, sans-serif',
+        fontSize: '36px',
+        fontStyle: '700',
+        color: '#ffdd44'
+      })
+      .setOrigin(0.5);
+
+    button.on('pointerover', () => button.setScale(1.03));
+    button.on('pointerout', () => button.setScale(1));
+    button.on('pointerdown', () => {
+      this.scene.start('GameScene');
+      this.scene.launch('UIScene');
+    });
+
+    this.tweens.add({ targets: [button, text], scale: 1.04, duration: 900, yoyo: true, repeat: -1 });
+  }
+
+  createAmbience() {
+    const { width, height } = this.scale;
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(0x1d2d62, 0x10214f, 0x0b1230, 0x182549, 1);
+    bg.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < 12; i += 1) {
+      const light = this.add
+        .image(Phaser.Math.Between(0, width), Phaser.Math.Between(0, height), UI_TEXTURES.bokeh)
+        .setTint(Phaser.Display.Color.GetColor(200 + Phaser.Math.Between(0, 40), 180, 255))
+        .setAlpha(Phaser.Math.FloatBetween(0.08, 0.2))
+        .setScale(Phaser.Math.FloatBetween(1.2, 3));
+      this.tweens.add({
+        targets: light,
+        x: light.x + Phaser.Math.Between(-40, 40),
+        y: light.y + Phaser.Math.Between(-70, 70),
+        alpha: Phaser.Math.FloatBetween(0.06, 0.16),
+        duration: Phaser.Math.Between(7000, 14000),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut'
+      });
+    }
+  }
+}

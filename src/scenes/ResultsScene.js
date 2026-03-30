@@ -1,0 +1,33 @@
+import Phaser from 'phaser';
+
+export default class ResultsScene extends Phaser.Scene {
+  constructor() {
+    super('ResultsScene');
+  }
+
+  init(data) {
+    this.dataModel = data;
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    const { score, targetScore, win } = this.dataModel;
+    const stars = win ? Math.max(1, Math.min(3, Math.ceil((score / targetScore) * 3))) : 0;
+
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    this.add.text(width / 2, 140, win ? 'You Win!' : 'Game Over', { fontSize: '48px', color: '#fff' }).setOrigin(0.5);
+    this.add.text(width / 2, 220, `Score: ${score}`, { fontSize: '32px', color: '#ffdd44' }).setOrigin(0.5);
+    this.add.text(width / 2, 280, `Stars: ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`, { fontSize: '36px', color: '#fff6bf' }).setOrigin(0.5);
+
+    const next = this.add
+      .text(width / 2, 360, 'Next Level', { fontSize: '30px', color: '#ffdd44', backgroundColor: '#1f2937', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    next.on('pointerdown', () => {
+      this.scene.stop('ResultsScene');
+      this.scene.start('MainMenuScene');
+      this.scene.stop('UIScene');
+    });
+  }
+}
