@@ -1,12 +1,13 @@
-import { START_MOVES, TARGET_SCORE } from '../config.js';
 import EventBus from '../core/EventBus.js';
+import { getLevelConfig } from '../config/LevelConfig.js';
 
 export default class GoalController {
-  constructor() {
-    this.level = 1;
+  constructor(level = 1) {
+    const levelConfig = getLevelConfig(level);
+    this.level = levelConfig.level;
     this.score = 0;
-    this.moves = START_MOVES;
-    this.targetScore = TARGET_SCORE;
+    this.moves = levelConfig.moveLimit;
+    this.targetScore = levelConfig.targetScore;
   }
 
   addScore(base, multiplier = 1) {
@@ -16,6 +17,7 @@ export default class GoalController {
 
   consumeMove() {
     this.moves -= 1;
+    EventBus.emit('moves:changed', this.moves);
     EventBus.emit('ui:update', this.getState());
   }
 
@@ -23,12 +25,12 @@ export default class GoalController {
     return { score: this.score, moves: this.moves, level: this.level, targetScore: this.targetScore };
   }
 
-  evaluate(hasValidMoves) {
+  evaluate() {
     if (this.score >= this.targetScore) {
       EventBus.emit('goal:win', this.getState());
       return 'win';
     }
-    if (this.moves <= 0 || !hasValidMoves) {
+    if (this.moves <= 0) {
       EventBus.emit('goal:lose', this.getState());
       return 'lose';
     }

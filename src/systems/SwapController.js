@@ -23,6 +23,8 @@ export default class SwapController {
   }
 
   async trySwap(a, b) {
+    if (!this.areAdjacent(a, b)) return false;
+
     this.lock();
     this.board.swapCells(a.row, a.col, b.row, b.col);
     const swappedA = this.board.tiles[a.row][a.col];
@@ -42,12 +44,13 @@ export default class SwapController {
       ]);
       await this.scene.shakeTiles([swappedA, swappedB], 2, 50);
       this.unlock();
-      return;
+      return false;
     }
 
     this.goalController.consumeMove();
-    await this.cascadeController.resolve(result, true);
+    await this.cascadeController.resolve(result);
     this.unlock();
     this.scene.events.emit('turn-complete');
+    return true;
   }
 }

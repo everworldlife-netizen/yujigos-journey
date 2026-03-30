@@ -1,5 +1,6 @@
 import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE, TILE_TYPES } from '../config.js';
 import { TILE_KEYS } from '../config/AssetConfig.js';
+import MatchFinder from './MatchFinder.js';
 
 export default class Board {
   constructor(scene) {
@@ -14,6 +15,13 @@ export default class Board {
 
   createInitialGrid() {
     this.grid = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => this.randomType()));
+    let result = MatchFinder.find(this.grid);
+    while (result.matches.length) {
+      result.matches.forEach(({ row, col }) => {
+        this.grid[row][col] = this.randomType();
+      });
+      result = MatchFinder.find(this.grid);
+    }
     this.tiles = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
   }
 
@@ -35,6 +43,11 @@ export default class Board {
     const sprite = this.scene.add.image(x, y, TILE_KEYS[type]).setDepth(5);
     sprite.setData('row', row);
     sprite.setData('col', col);
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on('pointerdown', () => {
+      if (!this.scene.onTilePicked) return;
+      this.scene.onTilePicked({ row: sprite.getData('row'), col: sprite.getData('col') });
+    });
     this.tiles[row][col] = sprite;
     this.grid[row][col] = type;
     return sprite;

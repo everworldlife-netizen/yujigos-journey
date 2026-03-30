@@ -35,19 +35,18 @@ export default class CascadeController {
     );
   }
 
-  async resolve(initialMatches, consumeMove = true) {
+  async resolve(initialMatches) {
     let result = initialMatches;
     this.comboController.reset();
 
     while (result.matches.length) {
       const chain = this.comboController.bump();
       if (this.scene.setComboDepth) this.scene.setComboDepth(chain);
-      this.scene.events.emit('matches-resolved', { chain, matchCount: result.matches.length, consumeMove });
+      this.scene.events.emit('matches-resolved', { chain, matchCount: result.matches.length });
       await this.scene.clearMatches(result.matches, result.specials);
       await this.applyGravity();
       await this.spawnController.fillEmpty();
       result = MatchFinder.find(this.board.grid);
-      consumeMove = false;
     }
   }
 }

@@ -33,8 +33,7 @@ export default class MainMenuScene extends Phaser.Scene {
     button.on('pointerover', () => button.setScale(1.03));
     button.on('pointerout', () => button.setScale(1));
     button.on('pointerdown', () => {
-      this.scene.start('GameScene');
-      this.scene.launch('UIScene');
+      this.scene.start('GameScene', { level: 1 });
     });
 
     this.tweens.add({ targets: [button, text], scale: 1.04, duration: 900, yoyo: true, repeat: -1 });
