@@ -7,9 +7,14 @@ import SpawnController from '../systems/SpawnController.js';
 import ComboController from '../systems/ComboController.js';
 import GoalController from '../systems/GoalController.js';
 import EventBus from '../core/EventBus.js';
-import { PARTICLE_CONFIG, SPECIAL_TEXTURES, UI_TEXTURES } from '../config/AssetConfig.js';
-
-const TILE_COLORS = [0xff4444, 0x4488ff, 0x44dd44, 0xffdd44, 0xbb44ff, 0xff8844];
+import {
+  PARTICLE_CONFIG,
+  TILE_PARTICLE_TINTS,
+  getBackgroundTextureKey,
+  getBoardTextureKey,
+  getFxTextureKey,
+  getSpecialTextureKey
+} from '../config/AssetConfig.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -175,11 +180,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createParticleSystems() {
-    this.matchParticles = this.add.particles(0, 0, UI_TEXTURES.sparkle, PARTICLE_CONFIG.matchBurst).setDepth(16);
+    this.matchParticles = this.add.particles(0, 0, getFxTextureKey('matchBurst'), PARTICLE_CONFIG.matchBurst).setDepth(16);
   }
 
   emitMatchBurst(tile, type) {
-    this.matchParticles.setTint(TILE_COLORS[type] ?? 0xffffff);
+    this.matchParticles.setTint(TILE_PARTICLE_TINTS[type] ?? 0xffffff);
     const baseCount = Phaser.Math.Between(12, 15);
     this.matchParticles.explode(Math.round(baseCount * this.comboParticleMultiplier), tile.x, tile.y);
   }
@@ -194,7 +199,7 @@ export default class GameScene extends Phaser.Scene {
 
         if (preserve.has(key)) {
           const special = specials.find((s) => s.row === row && s.col === col);
-          const overlay = this.add.image(tile.x, tile.y, SPECIAL_TEXTURES[special.specialType]).setDepth(7);
+          const overlay = this.add.image(tile.x, tile.y, getSpecialTextureKey(special.specialType)).setDepth(7);
           tile.setData('special', special.specialType);
           this.flashSpecialGlow(tile.x, tile.y);
           tile.setTint(0xffffff);
@@ -241,7 +246,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   flashSpecialGlow(x, y) {
-    const glow = this.add.image(x, y, UI_TEXTURES.specialGlow).setDepth(18).setBlendMode(Phaser.BlendModes.ADD);
+    const glow = this.add.image(x, y, getFxTextureKey('specialGlow')).setDepth(18).setBlendMode(Phaser.BlendModes.ADD);
     glow.setScale(PARTICLE_CONFIG.specialGlow.scale.from);
     glow.setAlpha(PARTICLE_CONFIG.specialGlow.alpha.from);
     this.tweens.add({
@@ -342,7 +347,13 @@ export default class GameScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    this.add.image(width / 2, height / 2, UI_TEXTURES.gameBackground).setDisplaySize(width, height).setDepth(-30);
+    const key = getBackgroundTextureKey('game');
+    if (this.textures.exists(key)) {
+      this.add.image(width / 2, height / 2, key).setDisplaySize(width, height).setDepth(-30);
+      return;
+    }
+
+    this.add.rectangle(width / 2, height / 2, width, height, 0x10203f, 1).setDepth(-30);
   }
 
   createBoardFrame() {
@@ -351,14 +362,25 @@ export default class GameScene extends Phaser.Scene {
     const x = BOARD_OFFSET_X;
     const y = BOARD_OFFSET_Y;
 
-    this.add
-      .image(x + boardWidth / 2, y + boardHeight / 2, UI_TEXTURES.boardFrame)
-      .setDisplaySize(boardWidth + 40, boardHeight + 40)
-      .setDepth(-8);
-    this.add
-      .image(x + boardWidth / 2, y + boardHeight / 2, UI_TEXTURES.boardBackground)
-      .setDisplaySize(boardWidth, boardHeight)
-      .setDepth(-7);
+    const frameKey = getBoardTextureKey('frame');
+    if (this.textures.exists(frameKey)) {
+      this.add
+        .image(x + boardWidth / 2, y + boardHeight / 2, frameKey)
+        .setDisplaySize(boardWidth + 40, boardHeight + 40)
+        .setDepth(-8);
+    } else {
+      this.add.rectangle(x + boardWidth / 2, y + boardHeight / 2, boardWidth + 40, boardHeight + 40, 0x3f2d1f, 0.95).setDepth(-8);
+    }
+
+    const backgroundKey = getBoardTextureKey('background');
+    if (this.textures.exists(backgroundKey)) {
+      this.add
+        .image(x + boardWidth / 2, y + boardHeight / 2, backgroundKey)
+        .setDisplaySize(boardWidth, boardHeight)
+        .setDepth(-7);
+    } else {
+      this.add.rectangle(x + boardWidth / 2, y + boardHeight / 2, boardWidth, boardHeight, 0x162b57, 0.95).setDepth(-7);
+    }
   }
 
   showSelectionGlow(tilePos) {

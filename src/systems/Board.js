@@ -1,5 +1,5 @@
-import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE, TILE_TYPES } from '../config.js';
-import { TILE_KEYS } from '../config/AssetConfig.js';
+import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE } from '../config.js';
+import { TILE_TYPES, getTileTextureKey } from '../config/AssetConfig.js';
 import MatchFinder from './MatchFinder.js';
 
 export default class Board {
@@ -10,7 +10,7 @@ export default class Board {
   }
 
   randomType() {
-    return Math.floor(Math.random() * TILE_TYPES);
+    return TILE_TYPES[Math.floor(Math.random() * TILE_TYPES.length)];
   }
 
   createInitialGrid() {
@@ -40,7 +40,7 @@ export default class Board {
   }
 
   createTileSprite(row, col, type, x, y) {
-    const sprite = this.scene.add.image(x, y, TILE_KEYS[type]).setDepth(5);
+    const sprite = this.scene.add.image(x, y, getTileTextureKey(type)).setDepth(5);
     sprite.setData('row', row);
     sprite.setData('col', col);
     sprite.setInteractive({ useHandCursor: true });

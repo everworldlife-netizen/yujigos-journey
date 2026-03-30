@@ -1,38 +1,38 @@
 export const ASSET_MANIFEST = {
   tiles: {
-    red: { key: 'tile-red', path: 'assets/tiles/tile-red.png', width: 64, height: 64, placeholder: 'tile-red' },
-    blue: { key: 'tile-blue', path: 'assets/tiles/tile-blue.png', width: 64, height: 64, placeholder: 'tile-blue' },
-    green: { key: 'tile-green', path: 'assets/tiles/tile-green.png', width: 64, height: 64, placeholder: 'tile-green' },
-    yellow: { key: 'tile-yellow', path: 'assets/tiles/tile-yellow.png', width: 64, height: 64, placeholder: 'tile-yellow' },
-    purple: { key: 'tile-purple', path: 'assets/tiles/tile-purple.png', width: 64, height: 64, placeholder: 'tile-purple' },
-    orange: { key: 'tile-orange', path: 'assets/tiles/tile-orange.png', width: 64, height: 64, placeholder: 'tile-orange' }
+    red: { key: 'tile_red', path: 'assets/tiles/tile_red.png', width: 64, height: 64, placeholder: 'tile-red' },
+    blue: { key: 'tile_blue', path: 'assets/tiles/tile_blue.png', width: 64, height: 64, placeholder: 'tile-blue' },
+    green: { key: 'tile_green', path: 'assets/tiles/tile_green.png', width: 64, height: 64, placeholder: 'tile-green' },
+    yellow: { key: 'tile_yellow', path: 'assets/tiles/tile_yellow.png', width: 64, height: 64, placeholder: 'tile-yellow' },
+    purple: { key: 'tile_purple', path: 'assets/tiles/tile_purple.png', width: 64, height: 64, placeholder: 'tile-purple' },
+    orange: { key: 'tile_orange', path: 'assets/tiles/tile_orange.png', width: 64, height: 64, placeholder: 'tile-orange' }
   },
   specials: {
-    striped: { key: 'special-striped', path: 'assets/tiles/special-striped.png', width: 64, height: 64, placeholder: 'special-striped' },
-    bomb: { key: 'special-bomb', path: 'assets/tiles/special-bomb.png', width: 64, height: 64, placeholder: 'special-bomb' },
-    rainbow: { key: 'special-rainbow', path: 'assets/tiles/special-rainbow.png', width: 64, height: 64, placeholder: 'special-rainbow' }
-  },
-  ui: {
-    panel: { key: 'ui-panel', path: 'assets/ui/ui-panel.png', width: 160, height: 66, placeholder: 'ui-panel' },
-    button: { key: 'ui-button', path: 'assets/ui/ui-button.png', width: 220, height: 66, placeholder: 'ui-button' },
-    pauseIcon: { key: 'ui-pause-icon', path: 'assets/ui/ui-pause-icon.png', width: 24, height: 20, placeholder: 'ui-pause-icon' },
-    highlight: { key: 'ui-highlight', path: 'assets/ui/ui-highlight.png', width: 64, height: 64, placeholder: 'ui-highlight' },
-    starFilled: { key: 'ui-star-filled', path: 'assets/ui/ui-star-filled.png', width: 32, height: 32, placeholder: 'ui-star-filled' },
-    starEmpty: { key: 'ui-star-empty', path: 'assets/ui/ui-star-empty.png', width: 32, height: 32, placeholder: 'ui-star-empty' }
+    striped: { key: 'special_striped', path: 'assets/tiles/special_striped.png', width: 64, height: 64, placeholder: 'special-striped' },
+    bomb: { key: 'special_bomb', path: 'assets/tiles/special_bomb.png', width: 64, height: 64, placeholder: 'special-bomb' },
+    rainbow: { key: 'special_rainbow', path: 'assets/tiles/special_rainbow.png', width: 64, height: 64, placeholder: 'special-rainbow' }
   },
   board: {
-    frame: { key: 'board-frame', path: 'assets/board/board-frame.png', width: 560, height: 560, placeholder: 'board-frame' },
-    background: { key: 'board-background', path: 'assets/board/board-background.png', width: 520, height: 520, placeholder: 'board-background' }
+    frame: { key: 'board_frame', path: 'assets/board/board_frame.png', width: 560, height: 560, placeholder: 'board-frame' },
+    background: { key: 'board_background', path: 'assets/board/board_background.png', width: 520, height: 520, placeholder: 'board-background' }
   },
   backgrounds: {
-    mainMenu: { key: 'bg-main-menu', path: 'assets/backgrounds/bg-main-menu.png', width: 1280, height: 720, placeholder: 'bg-main-menu' },
-    game: { key: 'bg-game', path: 'assets/backgrounds/bg-game.png', width: 1280, height: 720, placeholder: 'bg-game' }
+    mainMenu: { key: 'background_main_menu', path: 'assets/backgrounds/main_menu.png', width: 1280, height: 720, placeholder: 'bg-main-menu' },
+    game: { key: 'background_game', path: 'assets/backgrounds/game.png', width: 1280, height: 720, placeholder: 'bg-game' }
   },
-  effects: {
-    bokeh: { key: 'effect-bokeh', path: 'assets/effects/effect-bokeh.png', width: 40, height: 40, placeholder: 'effect-bokeh' },
-    sparkle: { key: 'effect-sparkle', path: 'assets/effects/effect-sparkle.png', width: 12, height: 12, placeholder: 'effect-sparkle' },
-    specialGlow: { key: 'effect-special-glow', path: 'assets/effects/effect-special-glow.png', width: 80, height: 80, placeholder: 'effect-special-glow' }
+  ui: {
+    panel: { key: 'ui_panel', path: 'assets/ui/panel.png', width: 160, height: 66, placeholder: 'ui-panel' },
+    button: { key: 'ui_button', path: 'assets/ui/button.png', width: 220, height: 66, placeholder: 'ui-button' },
+    pauseIcon: { key: 'ui_pause_icon', path: 'assets/ui/pause_icon.png', width: 24, height: 20, placeholder: 'ui-pause-icon' },
+    star: { key: 'ui_star', path: 'assets/ui/star.png', width: 32, height: 32, placeholder: 'ui-star' }
+  },
+  fx: {
+    sparkle: { key: 'fx_sparkle', path: 'assets/fx/sparkle.png', width: 12, height: 12, placeholder: 'fx-sparkle' },
+    specialGlow: { key: 'fx_special_glow', path: 'assets/fx/special_glow.png', width: 80, height: 80, placeholder: 'fx-special-glow' },
+    matchBurst: { key: 'fx_match_burst', path: 'assets/fx/match_burst.png', width: 16, height: 16, placeholder: 'fx-match-burst' }
   }
 };
 
-export const ASSET_ENTRIES = Object.values(ASSET_MANIFEST).flatMap((group) => Object.values(group));
+export const ASSET_ENTRIES = Object.entries(ASSET_MANIFEST).flatMap(([group, assets]) =>
+  Object.entries(assets).map(([name, entry]) => ({ group, name, ...entry }))
+);

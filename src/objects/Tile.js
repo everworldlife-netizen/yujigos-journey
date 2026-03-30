@@ -1,4 +1,4 @@
-import { TILE_KEYS } from '../config/AssetConfig.js';
+import { getTileTextureKey } from '../config/AssetConfig.js';
 
 const SPECIAL_TINTS = {
   striped: 0xfff1a8,
@@ -13,14 +13,14 @@ export default class Tile {
     this.col = col;
     this.type = type;
     this.specialType = null;
-    this.sprite = scene.add.image(x, y, TILE_KEYS[type]);
+    this.sprite = scene.add.image(x, y, getTileTextureKey(type));
     this.sprite.setData('tile', this);
     this.sprite.setInteractive({ useHandCursor: true });
   }
 
   setType(type) {
     this.type = type;
-    this.sprite.setTexture(TILE_KEYS[type]);
+    this.sprite.setTexture(getTileTextureKey(type));
   }
 
   setSpecial(type) {

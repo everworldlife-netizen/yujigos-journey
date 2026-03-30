@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import EventBus from '../core/EventBus.js';
-import { UI_TEXTURES } from '../config/AssetConfig.js';
+import { getUiTextureKey } from '../config/AssetConfig.js';
 
 export default class UIScene extends Phaser.Scene {
   constructor() {
@@ -14,7 +14,11 @@ export default class UIScene extends Phaser.Scene {
       moves: this.makePanel(354, 10, 'MOVES', '20')
     };
 
-    const pauseBtn = this.add.image(this.scale.width - 30, 24, UI_TEXTURES.pauseIcon).setInteractive({ useHandCursor: true });
+    const pauseIconKey = getUiTextureKey('pauseIcon');
+    const pauseBtn = this.textures.exists(pauseIconKey)
+      ? this.add.image(this.scale.width - 30, 24, pauseIconKey)
+      : this.add.rectangle(this.scale.width - 30, 24, 26, 22, 0x1f355f, 0.95);
+    pauseBtn.setInteractive({ useHandCursor: true });
     pauseBtn.on('pointerdown', () => EventBus.emit('game:pause'));
 
     EventBus.on('ui:update', this.updateUi, this);
@@ -23,7 +27,12 @@ export default class UIScene extends Phaser.Scene {
 
   makePanel(x, y, label, value) {
     const panel = this.add.container(x, y).setDepth(50);
-    panel.add(this.add.image(0, 0, UI_TEXTURES.panel).setOrigin(0));
+    const panelKey = getUiTextureKey('panel');
+    if (this.textures.exists(panelKey)) {
+      panel.add(this.add.image(0, 0, panelKey).setOrigin(0));
+    } else {
+      panel.add(this.add.rectangle(80, 33, 160, 66, 0x2d4b8f, 0.95).setStrokeStyle(2, 0xffffff, 0.4));
+    }
     panel.add(this.add.text(14, 8, label, { fontFamily: 'Trebuchet MS, Arial, sans-serif', fontSize: '14px', color: '#cfe0ff' }));
     const valueText = this.add.text(14, 27, value, {
       fontFamily: 'Trebuchet MS, Arial, sans-serif',
