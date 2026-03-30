@@ -75,6 +75,7 @@ export default class GameScene extends Phaser.Scene {
       this.comboController.destroy();
       this.goalController.destroy();
       this.effectsManager.destroy();
+      if (this.ambientParticles) this.ambientParticles.destroy();
     });
   }
 
@@ -111,6 +112,7 @@ export default class GameScene extends Phaser.Scene {
     this.layout = calculateLayout(gameSize.width, gameSize.height);
     if (this.bgImage) this.bgImage.setPosition(gameSize.width / 2, gameSize.height / 2).setDisplaySize(gameSize.width, gameSize.height);
     if (this.radialGlow) this.radialGlow.setPosition(gameSize.width / 2, gameSize.height / 2);
+    if (this.ambientParticles) this.ambientParticles.setPosition(0, 0).setParticleBounds(0, 0, gameSize.width, gameSize.height);
     this.effectsManager.resize(gameSize.width, gameSize.height);
     this.createBoardFrame();
 
@@ -221,7 +223,7 @@ export default class GameScene extends Phaser.Scene {
     const key = getBackgroundTextureKey('game');
     this.bgImage = this.textures.exists(key)
       ? this.add.image(width / 2, height / 2, key).setDisplaySize(width, height).setDepth(-30)
-      : this.add.rectangle(width / 2, height / 2, width, height, 0x10203f, 1).setDepth(-30);
+      : this.add.rectangle(width / 2, height / 2, width, height, 0x0c1232, 1).setDepth(-30);
 
     if (!this.textures.exists('bg_radial_gradient')) {
       const gradient = this.add.graphics().setDepth(-29);
@@ -231,8 +233,22 @@ export default class GameScene extends Phaser.Scene {
       gradient.destroy();
     }
 
-    this.radialGlow = this.add.image(width / 2, height / 2, 'bg_radial_gradient').setAlpha(0.14).setDepth(-29);
+    this.radialGlow = this.add.image(width / 2, height / 2, 'bg_radial_gradient').setAlpha(0.16).setDepth(-29);
     this.radialGlow.setBlendMode(Phaser.BlendModes.SCREEN);
+
+    if (this.ambientParticles) this.ambientParticles.destroy();
+    this.ambientParticles = this.add.particles(0, 0, 'fx_sparkle', {
+      x: { min: 0, max: width },
+      y: { min: 0, max: height },
+      lifespan: { min: 5000, max: 11000 },
+      alpha: { start: 0.2, end: 0 },
+      scale: { start: 0.35, end: 0.05 },
+      speedY: { min: -15, max: -4 },
+      speedX: { min: -6, max: 6 },
+      quantity: 1,
+      frequency: 220,
+      blendMode: Phaser.BlendModes.ADD
+    }).setDepth(-28);
   }
 
   createBoardFrame() {
@@ -246,15 +262,21 @@ export default class GameScene extends Phaser.Scene {
     if (this.textures.exists(frameKey)) this.boardFrameElements.push(this.add.image(cx, cy, frameKey).setDisplaySize(boardWidth + 40, boardHeight + 40).setDepth(-8));
 
     const frameGraphics = this.add.graphics().setDepth(-9);
-    frameGraphics.fillStyle(0x3b2210, 0.96);
-    frameGraphics.fillRoundedRect(x - 20, y - 20, boardWidth + 40, boardHeight + 40, 22);
-    frameGraphics.lineStyle(8, 0xd6a452, 1);
-    frameGraphics.strokeRoundedRect(x - 16, y - 16, boardWidth + 32, boardHeight + 32, 20);
+    frameGraphics.fillStyle(0x2f1f0f, 0.97);
+    frameGraphics.fillRoundedRect(x - 26, y - 26, boardWidth + 52, boardHeight + 52, 26);
+    frameGraphics.lineStyle(12, 0x7d5427, 1);
+    frameGraphics.strokeRoundedRect(x - 20, y - 20, boardWidth + 40, boardHeight + 40, 24);
+    frameGraphics.lineStyle(6, 0xd6a85d, 0.9);
+    frameGraphics.strokeRoundedRect(x - 14, y - 14, boardWidth + 28, boardHeight + 28, 20);
+    frameGraphics.lineStyle(2, 0xfff0c2, 0.5);
+    frameGraphics.strokeRoundedRect(x - 10, y - 10, boardWidth + 20, boardHeight + 20, 18);
+    frameGraphics.fillStyle(0x000000, 0.26);
+    frameGraphics.fillRoundedRect(x - 6, y - 6, boardWidth + 12, boardHeight + 12, 16);
     this.boardFrameElements.push(frameGraphics);
 
     const backgroundKey = getBoardTextureKey('background');
     if (this.textures.exists(backgroundKey)) this.boardFrameElements.push(this.add.image(cx, cy, backgroundKey).setDisplaySize(boardWidth, boardHeight).setDepth(-7));
-    else this.boardFrameElements.push(this.add.rectangle(cx, cy, boardWidth, boardHeight, 0x162b57, 0.95).setDepth(-7));
+    else this.boardFrameElements.push(this.add.rectangle(cx, cy, boardWidth, boardHeight, 0x121b3b, 0.84).setDepth(-7));
   }
 
   updateParallax(pointer) {

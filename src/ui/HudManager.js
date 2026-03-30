@@ -15,11 +15,11 @@ export default class HudManager {
       moves: this.makePanel(this.panelContainers.moves, 'MOVES', '20')
     };
 
-    const pauseSize = 44;
+    const pauseSize = 46;
     this.pauseBtn = scene.add.container(0, 0).setDepth(50).setSize(pauseSize, pauseSize).setInteractive();
-    const pauseBg = scene.add.rectangle(0, 0, pauseSize, pauseSize, 0x1f355f, 0.9).setStrokeStyle(2, 0xffffff, 0.3);
+    const pauseBg = scene.add.circle(0, 0, pauseSize / 2, 0x0f1730, 0.72).setStrokeStyle(2, 0x8bc2ff, 0.42);
     const pauseIconKey = getUiTextureKey('pauseIcon');
-    const pauseIcon = scene.textures.exists(pauseIconKey) ? scene.add.image(0, 0, pauseIconKey).setDisplaySize(24, 20) : scene.add.rectangle(0, 0, 22, 18, 0xffffff, 0.95);
+    const pauseIcon = scene.textures.exists(pauseIconKey) ? scene.add.image(0, 0, pauseIconKey).setDisplaySize(22, 18) : scene.add.rectangle(0, 0, 22, 18, 0xffffff, 0.95);
     this.pauseBtn.add([pauseBg, pauseIcon]);
     this.pauseBtn.on('pointerdown', () => EventBus.emit('game:pause'));
 
@@ -31,9 +31,21 @@ export default class HudManager {
     const panel = this.scene.add.container(0, 0).setDepth(50);
     const panelKey = getUiTextureKey('panel');
     if (this.scene.textures.exists(panelKey)) panel.add(this.scene.add.image(0, 0, panelKey).setOrigin(0));
-    else panel.add(this.scene.add.rectangle(74, 32, 148, 64, 0x2d4b8f, 0.95).setStrokeStyle(2, 0xffffff, 0.4));
-    const labelText = this.scene.add.text(12, 6, label, { fontFamily: 'Trebuchet MS, Arial, sans-serif', fontSize: '14px', color: '#cfe0ff' });
-    const valueText = this.scene.add.text(12, 24, value, { fontFamily: 'Trebuchet MS, Arial, sans-serif', fontSize: '24px', fontStyle: '700', color: '#ffffff' });
+    else panel.add(this.scene.add.rectangle(86, 36, 172, 72, 0x0f1730, 0.64).setStrokeStyle(2, 0x8bc2ff, 0.4));
+    const labelText = this.scene.add.text(16, 10, label, {
+      fontFamily: 'Trebuchet MS, Arial, sans-serif',
+      fontSize: '14px',
+      fontStyle: '700',
+      color: '#aed1ff'
+    });
+    const valueText = this.scene.add.text(16, 32, value, {
+      fontFamily: 'Trebuchet MS, Arial, sans-serif',
+      fontSize: '26px',
+      fontStyle: '700',
+      color: '#ffffff',
+      stroke: '#04122d',
+      strokeThickness: 4
+    });
     panel.add([labelText, valueText]);
     parent.add(panel);
     return { label: labelText, value: valueText };
@@ -45,7 +57,10 @@ export default class HudManager {
     const rowY = hudTop + hudHeight / 2;
     const labelSize = Math.max(12, Math.floor(14 * scaleFactor));
     const valueSize = Math.max(20, Math.floor(26 * scaleFactor));
-    Object.values(this.panels).forEach((panel) => { panel.label.setFontSize(labelSize); panel.value.setFontSize(valueSize); });
+    Object.values(this.panels).forEach((panel) => {
+      panel.label.setFontSize(labelSize);
+      panel.value.setFontSize(valueSize);
+    });
 
     const targets = [
       { c: this.panelContainers.score, x: boardX, y: rowY },
