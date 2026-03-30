@@ -1,4 +1,5 @@
-import { BOARD_OFFSET_X, BOARD_OFFSET_Y, COLS, ROWS, TILE_SIZE } from '../config.js';
+import Phaser from 'phaser';
+import { COLS, ROWS } from '../config.js';
 import { TILE_TYPES, getTileTextureKey } from '../config/AssetConfig.js';
 import MatchFinder from './MatchFinder.js';
 
@@ -7,6 +8,10 @@ export default class Board {
     this.scene = scene;
     this.grid = [];
     this.tiles = [];
+  }
+
+  getLayout() {
+    return this.scene.layout;
   }
 
   randomType() {
@@ -26,31 +31,35 @@ export default class Board {
   }
 
   gridToWorld(row, col) {
+    const { boardX, boardY, tileSize } = this.getLayout();
     return {
-      x: BOARD_OFFSET_X + col * TILE_SIZE + TILE_SIZE / 2,
-      y: BOARD_OFFSET_Y + row * TILE_SIZE + TILE_SIZE / 2
+      x: boardX + col * tileSize + tileSize / 2,
+      y: boardY + row * tileSize + tileSize / 2
     };
   }
 
   worldToGrid(x, y) {
+    const { boardX, boardY, tileSize } = this.getLayout();
     return {
-      row: Math.floor((y - BOARD_OFFSET_Y) / TILE_SIZE),
-      col: Math.floor((x - BOARD_OFFSET_X) / TILE_SIZE)
+      row: Math.floor((y - boardY) / tileSize),
+      col: Math.floor((x - boardX) / tileSize)
     };
   }
 
   createTileSprite(row, col, type, x, y) {
-    const sprite = this.scene.add.image(x, y, getTileTextureKey(type)).setDepth(5);
+    const { tileSize } = this.getLayout();
+    const sprite = this.scene.add.image(x, y, getTileTextureKey(type)).setDepth(5).setDisplaySize(tileSize, tileSize);
     sprite.setData('row', row);
     sprite.setData('col', col);
-    sprite.setInteractive({ useHandCursor: true });
-    sprite.on('pointerdown', () => {
-      if (this.scene.onTilePointerDown) this.scene.onTilePointerDown(sprite);
+    const hitSize = Math.max(44, tileSize);
+    sprite.setInteractive(new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize), Phaser.Geom.Rectangle.Contains);
+    sprite.on('pointerdown', (pointer) => {
+      if (this.scene.onTilePointerDown) this.scene.onTilePointerDown(sprite, pointer);
       if (!this.scene.onTilePicked) return;
       this.scene.onTilePicked({ row: sprite.getData('row'), col: sprite.getData('col') });
     });
-    sprite.on('pointerup', () => {
-      if (this.scene.onTilePointerUp) this.scene.onTilePointerUp(sprite);
+    sprite.on('pointerup', (pointer) => {
+      if (this.scene.onTilePointerUp) this.scene.onTilePointerUp(sprite, pointer);
     });
     sprite.on('pointerout', () => {
       if (this.scene.onTilePointerUp) this.scene.onTilePointerUp(sprite);
