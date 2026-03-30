@@ -1,9 +1,0 @@
-export const ROWS = 8;
-export const COLS = 8;
-export const TILE_TYPES = 6;
-export const TILE_SIZE = 64;
-export const TILE_PADDING = 4;
-export const BOARD_OFFSET_X = 24;
-export const BOARD_OFFSET_Y = 84;
-export const START_MOVES = 20;
-export const TARGET_SCORE = 1000;
