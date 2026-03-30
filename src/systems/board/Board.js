@@ -47,7 +47,11 @@ export default class Board {
     sprite.setInteractive(new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize), Phaser.Geom.Rectangle.Contains);
     sprite.on('pointerdown', (pointer) => EventBus.emit('input:tileDown', { row: sprite.getData('row'), col: sprite.getData('col'), pointer, sprite }));
     sprite.on('pointerup', (pointer) => EventBus.emit('input:tileUp', { row: sprite.getData('row'), col: sprite.getData('col'), pointer, sprite }));
-    sprite.on('pointerout', () => EventBus.emit('input:tileUp', { row: sprite.getData('row'), col: sprite.getData('col'), sprite }));
+    sprite.on('pointerover', () => EventBus.emit('input:tileHover', { row: sprite.getData('row'), col: sprite.getData('col'), hovering: true }));
+    sprite.on('pointerout', () => {
+      EventBus.emit('input:tileHover', { row: sprite.getData('row'), col: sprite.getData('col'), hovering: false });
+      EventBus.emit('input:tileUp', { row: sprite.getData('row'), col: sprite.getData('col'), sprite });
+    });
     sprite.on('pointermove', (pointer) => EventBus.emit('input:tileMove', { row: sprite.getData('row'), col: sprite.getData('col'), pointer, sprite }));
 
     const tile = new Tile(this.scene, { type, row, col, sprite });

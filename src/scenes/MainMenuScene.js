@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { getBackgroundTextureKey, getFxTextureKey, getUiTextureKey } from '../config/AssetConfig.js';
+import { getBackgroundTextureKey, getCharacterTextureKey, getFxTextureKey, getUiTextureKey } from '../config/AssetConfig.js';
 
 export default class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -11,7 +11,7 @@ export default class MainMenuScene extends Phaser.Scene {
     this.createAmbience();
 
     this.add
-      .text(this.scale.width / 2, this.scale.height * 0.22, "Yujigo's Journey", {
+      .text(this.scale.width / 2, this.scale.height * 0.18, "Yujigo's Journey", {
         fontFamily: 'Trebuchet MS, Arial, sans-serif',
         fontSize: `${Math.floor(52 * scaleFactor)}px`,
         fontStyle: '700',
@@ -21,10 +21,15 @@ export default class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const buttonKey = getUiTextureKey('button');
-    const buttonY = this.scale.height * 0.52;
+    const yujigoKey = getCharacterTextureKey('yujigo', 'idle');
+    if (yujigoKey && this.textures.exists(yujigoKey)) {
+      this.add.image(this.scale.width * 0.5, this.scale.height * 0.42, yujigoKey).setDisplaySize(260, 260).setAlpha(0.98);
+    }
+
+    const buttonKey = getUiTextureKey('btn-play');
+    const buttonY = this.scale.height * 0.68;
     const button = this.textures.exists(buttonKey)
-      ? this.add.image(this.scale.width / 2, buttonY, buttonKey).setDisplaySize(Math.min(320, this.scale.width * 0.46), 72)
+      ? this.add.image(this.scale.width / 2, buttonY, buttonKey).setDisplaySize(Math.min(320, this.scale.width * 0.46), 88)
       : this.add.rectangle(this.scale.width / 2, buttonY, 220, 72, 0x24324f, 0.95).setStrokeStyle(2, 0xffffff, 0.4);
     button.setInteractive({ useHandCursor: true });
     const text = this.add
@@ -48,12 +53,9 @@ export default class MainMenuScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    const menuBgKey = getBackgroundTextureKey('mainMenu');
-    if (this.textures.exists(menuBgKey)) {
-      this.add.image(width / 2, height / 2, menuBgKey).setDisplaySize(width, height);
-    } else {
-      this.add.rectangle(width / 2, height / 2, width, height, 0x1a2d5a, 1);
-    }
+    const menuBgKey = getBackgroundTextureKey('titleBg');
+    if (this.textures.exists(menuBgKey)) this.add.image(width / 2, height / 2, menuBgKey).setDisplaySize(width, height);
+    else this.add.rectangle(width / 2, height / 2, width, height, 0x1a2d5a, 1);
 
     for (let i = 0; i < 12; i += 1) {
       const light = this.add

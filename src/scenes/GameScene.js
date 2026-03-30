@@ -220,7 +220,8 @@ export default class GameScene extends Phaser.Scene {
 
   createAmbience() {
     const { width, height } = this.scale;
-    const key = getBackgroundTextureKey('game');
+    const backgroundOrder = ['sunberryMeadow', 'frostberryFalls', 'enchantedForest', 'cosmicIsland', 'sunberryDesert'];
+    const key = getBackgroundTextureKey(backgroundOrder[(Math.max(1, this.level) - 1) % backgroundOrder.length]);
     this.bgImage = this.textures.exists(key)
       ? this.add.image(width / 2, height / 2, key).setDisplaySize(width, height).setDepth(-30)
       : this.add.rectangle(width / 2, height / 2, width, height, 0x0c1232, 1).setDepth(-30);
