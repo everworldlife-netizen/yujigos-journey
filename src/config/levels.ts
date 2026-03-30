@@ -12,7 +12,7 @@ export interface LevelConfig {
 }
 
 export const LEVELS: LevelConfig[] = [
-  { id: 1, name: 'Dawn Meadow', targetScore: 3500, moves: 26, gemTypes: 5, obstacleDensity: 0.03, obstaclePool: ['none'], stars: [2500, 3500, 5000] },
+  { id: 1, name: 'Dawn Meadow', targetScore: 3500, moves: 26, gemTypes: 5, obstacleDensity: 0, obstaclePool: ['none'], stars: [2500, 3500, 5000] },
   { id: 2, name: 'Lunar Brook', targetScore: 5200, moves: 24, gemTypes: 5, obstacleDensity: 0.06, obstaclePool: ['ice'], stars: [3600, 5200, 7000] },
   { id: 3, name: 'Glitter Grove', targetScore: 7000, moves: 24, gemTypes: 5, obstacleDensity: 0.08, obstaclePool: ['ice', 'locked'], stars: [5000, 7000, 9000] },
   { id: 4, name: 'Quartz Pass', targetScore: 9000, moves: 22, gemTypes: 5, obstacleDensity: 0.1, obstaclePool: ['ice', 'stone'], stars: [6500, 9000, 12000] },
