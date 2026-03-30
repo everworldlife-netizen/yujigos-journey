@@ -37,8 +37,24 @@ export class Match3 {
     this.gemTypes = Math.min(5, level.gemTypes);
     Phaser.Math.RND.sow([`${seed}`]);
     this.grid = this.createBoard();
+    console.log('[match3] raw board before ensureNoInitialMatches');
+    this.logBoard('raw board');
+    console.log(`[match3] raw board match count before ensureNoInitialMatches: ${this.findMatches().length}`);
+
     this.ensureNoInitialMatches();
-    console.log(`[match3] valid moves on board creation: ${this.findValidMoves().length}`);
+
+    let regenerationAttempts = 0;
+    let validMoves = this.findValidMoves();
+    while (validMoves.length === 0 && regenerationAttempts < 100) {
+      regenerationAttempts += 1;
+      console.log(`[match3] no valid moves after ensureNoInitialMatches, regenerating board (attempt ${regenerationAttempts})`);
+      this.grid = this.createBoard();
+      this.ensureNoInitialMatches();
+      validMoves = this.findValidMoves();
+    }
+
+    console.log(`[match3] board regeneration attempts needed: ${regenerationAttempts}`);
+    console.log(`[match3] valid moves on board creation: ${validMoves.length}`);
     this.logBoard('initial board');
   }
 
@@ -133,6 +149,7 @@ export class Match3 {
   }
 
   findMatches(): MatchGroup[] {
+    console.log('[match3] findMatches() scanning grid:', this.grid.map((row) => row.map((cell) => cell.gemType)));
     const groups: GemCell[][] = [];
 
     for (let r = 0; r < this.rows; r += 1) {
@@ -145,6 +162,7 @@ export class Match3 {
           if (count >= 3) {
             const run: GemCell[] = [];
             for (let i = c - count; i < c; i += 1) run.push(this.grid[r][i]);
+            console.log(`[match3] horizontal run found row=${r} startCol=${c - count} len=${count} gemType=${run[0].gemType}`);
             groups.push(run);
           }
           count = 1;
@@ -162,6 +180,7 @@ export class Match3 {
           if (count >= 3) {
             const run: GemCell[] = [];
             for (let i = r - count; i < r; i += 1) run.push(this.grid[i][c]);
+            console.log(`[match3] vertical run found col=${c} startRow=${r - count} len=${count} gemType=${run[0].gemType}`);
             groups.push(run);
           }
           count = 1;
@@ -228,9 +247,11 @@ export class Match3 {
 
           const targetRow = target.row;
           const targetCol = target.col;
+          console.log(`[match3] trying swap (${row},${col})<->(${targetRow},${targetCol})`);
           this.swapByPosition(row, col, targetRow, targetCol);
           const matches = this.findMatches();
           this.swapByPosition(row, col, targetRow, targetCol);
+          console.log(`[match3] swap (${row},${col})<->(${targetRow},${targetCol}) matchCount=${matches.length}`);
 
           if (matches.length > 0) {
             validMoves.push({
@@ -362,3 +383,68 @@ export class Match3 {
     return steps;
   }
 }
+
+function runFindMatchesSelfTest(): void {
+  const testLevel: LevelConfig = {
+    id: 999,
+    name: 'findMatches self-test',
+    targetScore: 0,
+    moves: 1,
+    gemTypes: 5,
+    obstacleDensity: 0,
+    obstaclePool: ['none'],
+    stars: [0, 0, 0],
+  };
+
+  const match3 = new Match3(testLevel, 1);
+  const expectedTopLeft = [
+    [0, 0, 0],
+    [1, 2, 3],
+    [4, 1, 2],
+  ];
+  const filler = [
+    [1, 2, 3, 4, 1],
+    [2, 3, 4, 1, 2],
+    [3, 4, 1, 2, 3],
+    [4, 1, 2, 3, 4],
+    [1, 2, 3, 4, 1],
+    [2, 3, 4, 1, 2],
+    [3, 4, 1, 2, 3],
+    [4, 1, 2, 3, 4],
+  ];
+
+  const testGrid: GemCell[][] = [];
+  for (let row = 0; row < match3.rows; row += 1) {
+    testGrid[row] = [];
+    for (let col = 0; col < match3.cols; col += 1) {
+      const gemType =
+        row < 3 && col < 3
+          ? expectedTopLeft[row][col]
+          : filler[row][Math.max(0, col - 3)];
+      testGrid[row][col] = {
+        row,
+        col,
+        gemType,
+        special: 'none',
+        obstacle: 'none',
+        obstacleHP: 0,
+      };
+    }
+  }
+
+  match3.grid = testGrid;
+  const matches = match3.findMatches();
+  const horizontalMatches = matches.filter((m) => m.orientation === 'h' && m.cells.length === 3 && m.cells.every((c) => c.row === 0));
+  const pass = matches.length === 1 && horizontalMatches.length === 1;
+  console.log('[match3] findMatches self-test result', {
+    pass,
+    totalMatches: matches.length,
+    matches: matches.map((m) => ({
+      orientation: m.orientation,
+      cells: m.cells.map((c) => ({ row: c.row, col: c.col, gemType: c.gemType })),
+    })),
+  });
+  console.assert(pass, '[match3] findMatches self-test failed: expected exactly one horizontal row-0 match of 3');
+}
+
+runFindMatchesSelfTest();
