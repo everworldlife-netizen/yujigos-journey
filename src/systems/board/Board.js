@@ -4,10 +4,16 @@ import { TILE_TYPES } from '../../config/AssetConfig.js';
 import MatchFinder from '../match/MatchFinder.js';
 import Tile from './Tile.js';
 import EventBus from '../../utils/EventBus.js';
+import { getLevelConfig } from '../../config/LevelConfig.js';
 
 export default class Board {
-  constructor(scene) {
+  constructor(scene, level = 1) {
     this.scene = scene;
+    this.levelConfig = getLevelConfig(level);
+    this.rows = this.levelConfig.gridRows ?? GAME_CONFIG.BOARD_ROWS;
+    this.cols = this.levelConfig.gridCols ?? GAME_CONFIG.BOARD_COLS;
+    const maxTileTypes = this.levelConfig.tileTypes ?? GAME_CONFIG.TILE_TYPES;
+    this.availableTileTypes = TILE_TYPES.slice(0, Math.max(1, maxTileTypes));
     this.grid = [];
     this.tiles = [];
   }
@@ -17,19 +23,14 @@ export default class Board {
   }
 
   randomType() {
-    return TILE_TYPES[Math.floor(Math.random() * TILE_TYPES.length)];
+    return this.availableTileTypes[Math.floor(Math.random() * this.availableTileTypes.length)];
   }
 
   createInitialGrid() {
-    this.grid = Array.from({ length: GAME_CONFIG.BOARD_ROWS }, () => Array.from({ length: GAME_CONFIG.BOARD_COLS }, () => this.randomType()));
-    let result = MatchFinder.find(this.grid);
-    while (result.matches.length) {
-      result.matches.forEach(({ row, col }) => {
-        this.grid[row][col] = this.randomType();
-      });
-      result = MatchFinder.find(this.grid);
-    }
-    this.tiles = Array.from({ length: GAME_CONFIG.BOARD_ROWS }, () => Array.from({ length: GAME_CONFIG.BOARD_COLS }, () => null));
+    do {
+      this.grid = Array.from({ length: this.rows }, () => Array.from({ length: this.cols }, () => this.randomType()));
+    } while (MatchFinder.find(this.grid).matches.length);
+    this.tiles = Array.from({ length: this.rows }, () => Array.from({ length: this.cols }, () => null));
   }
 
   gridToWorld(row, col) {

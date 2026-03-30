@@ -10,10 +10,10 @@ export default class SpawnController {
 
   async fillEmpty({ resolve }) {
     const spawns = [];
-    for (let col = 0; col < GAME_CONFIG.BOARD_COLS; col += 1) {
+    for (let col = 0; col < this.board.cols; col += 1) {
       let empties = 0;
-      for (let row = GAME_CONFIG.BOARD_ROWS - 1; row >= 0; row -= 1) if (this.board.grid[row][col] === -1) empties += 1;
-      for (let row = 0; row < GAME_CONFIG.BOARD_ROWS; row += 1) {
+      for (let row = this.board.rows - 1; row >= 0; row -= 1) if (this.board.grid[row][col] === -1) empties += 1;
+      for (let row = 0; row < this.board.rows; row += 1) {
         if (this.board.grid[row][col] !== -1) continue;
         const type = this.board.randomType();
         this.board.grid[row][col] = type;

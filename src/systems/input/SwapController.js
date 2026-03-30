@@ -51,11 +51,6 @@ export default class SwapController {
     if (!result.matches.length) {
       this.board.swapCells(a.row, a.col, b.row, b.col);
       await Promise.all([
-        this.scene.tweenToGrid(swappedA, b.row, b.col, GAME_CONFIG.SWAP_INVALID_DURATION, { ease: 'Cubic.InOut', arc: 4, pulse: true }),
-        this.scene.tweenToGrid(swappedB, a.row, a.col, GAME_CONFIG.SWAP_INVALID_DURATION, { ease: 'Cubic.InOut', arc: 4, pulse: true })
-      ]);
-      await new Promise((resolve) => this.scene.time.delayedCall(GAME_CONFIG.TURN_BUFFER_DELAY, resolve));
-      await Promise.all([
         this.scene.tweenToGrid(swappedA, a.row, a.col, GAME_CONFIG.SWAP_INVALID_DURATION, { ease: 'Cubic.InOut', arc: 4, pulse: true }),
         this.scene.tweenToGrid(swappedB, b.row, b.col, GAME_CONFIG.SWAP_INVALID_DURATION, { ease: 'Cubic.InOut', arc: 4, pulse: true })
       ]);
@@ -123,7 +118,7 @@ export default class SwapController {
     if (angleDeg > 45) return;
 
     const target = absX >= absY ? { row, col: col + (dx > 0 ? 1 : -1) } : { row: row + (dy > 0 ? 1 : -1), col };
-    if (target.row < 0 || target.row >= GAME_CONFIG.BOARD_ROWS || target.col < 0 || target.col >= GAME_CONFIG.BOARD_COLS) return;
+    if (target.row < 0 || target.row >= this.board.rows || target.col < 0 || target.col >= this.board.cols) return;
     this.clearSelected();
     this.trySwap({ row, col }, target);
   }

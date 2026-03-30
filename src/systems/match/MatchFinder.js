@@ -1,15 +1,15 @@
-import GAME_CONFIG from '../../config/GameConfig.js';
-
 export default class MatchFinder {
   static find(grid) {
+    const rows = grid.length;
+    const cols = grid[0]?.length ?? 0;
     const matched = new Set();
     const horizontalRuns = [];
     const verticalRuns = [];
 
-    for (let row = 0; row < GAME_CONFIG.BOARD_ROWS; row += 1) {
+    for (let row = 0; row < rows; row += 1) {
       let run = 1;
-      for (let col = 1; col <= GAME_CONFIG.BOARD_COLS; col += 1) {
-        const same = col < GAME_CONFIG.BOARD_COLS && grid[row][col] !== -1 && grid[row][col] === grid[row][col - 1];
+      for (let col = 1; col <= cols; col += 1) {
+        const same = col < cols && grid[row][col] !== -1 && grid[row][col] === grid[row][col - 1];
         if (same) run += 1;
         else {
           if (run >= 3) {
@@ -22,10 +22,10 @@ export default class MatchFinder {
       }
     }
 
-    for (let col = 0; col < GAME_CONFIG.BOARD_COLS; col += 1) {
+    for (let col = 0; col < cols; col += 1) {
       let run = 1;
-      for (let row = 1; row <= GAME_CONFIG.BOARD_ROWS; row += 1) {
-        const same = row < GAME_CONFIG.BOARD_ROWS && grid[row][col] !== -1 && grid[row][col] === grid[row - 1][col];
+      for (let row = 1; row <= rows; row += 1) {
+        const same = row < rows && grid[row][col] !== -1 && grid[row][col] === grid[row - 1][col];
         if (same) run += 1;
         else {
           if (run >= 3) {
